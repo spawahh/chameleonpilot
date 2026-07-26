@@ -26,6 +26,9 @@ UPSTREAM_HUD = {
 
 
 def rgba(color) -> tuple[int, int, int, int]:
+  # raylib's named colors (rl.WHITE, rl.BLANK) are plain tuples; rl.Color(...) is a struct
+  if isinstance(color, tuple):
+    return tuple(color)
   return (color.r, color.g, color.b, color.a)
 
 
