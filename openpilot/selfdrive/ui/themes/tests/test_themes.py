@@ -1,7 +1,7 @@
 import unittest
 
 from openpilot.selfdrive.ui import themes
-from openpilot.selfdrive.ui.themes.base import HudColors, RoadColors
+from openpilot.selfdrive.ui.themes.base import HudColors, OffroadColors, RoadColors
 from openpilot.selfdrive.ui.themes.stock import STOCK
 
 # Upstream values, transcribed from selfdrive/ui/onroad/hud_renderer.py @ 27122bbd2.
@@ -47,8 +47,30 @@ UPSTREAM_ROAD = {
   "ALERT_CRITICAL_BG": (0xC9, 0x22, 0x31, 0xF1),
 }
 
+# Upstream values, transcribed from selfdrive/ui/layouts/sidebar.py (Colors) and
+# layouts/settings/settings.py (module constants) @ 27122bbd2.
+UPSTREAM_OFFROAD = {
+  "WHITE": (255, 255, 255, 255),
+  "WHITE_DIM": (255, 255, 255, 85),
+  "GRAY": (84, 84, 84, 255),
+  "GOOD": (255, 255, 255, 255),
+  "WARNING": (218, 202, 37, 255),
+  "DANGER": (201, 34, 49, 255),
+  "METRIC_BORDER": (255, 255, 255, 85),
+  "BUTTON_NORMAL": (255, 255, 255, 255),
+  "BUTTON_PRESSED": (255, 255, 255, 166),
+  "PANEL_BG": (41, 41, 41, 255),
+  "CLOSE_BTN_BG": (41, 41, 41, 255),
+  "CLOSE_BTN_PRESSED": (59, 59, 59, 255),
+  "TEXT_DIM": (128, 128, 128, 255),
+}
+
 # Colors that must be identical in every theme: they are safety cues, not styling.
 SAFETY_ROAD_COLORS = ("ROAD_EDGE", "LEAD_GLOW", "LEAD_CHEVRON", "ALERT_PROMPT_BG", "ALERT_CRITICAL_BG")
+
+# Sidebar metric status semantics: white/amber/red mean good/warning/danger. Themable
+# chrome around them is fine, but repainting these would change what they communicate.
+STATUS_OFFROAD_COLORS = ("GOOD", "WARNING", "DANGER")
 
 
 def rgba(color) -> tuple[int, int, int, int]:
@@ -71,11 +93,15 @@ class TestThemes(unittest.TestCase):
     for name, expected in UPSTREAM_ROAD.items():
       with self.subTest(color=name):
         self.assertEqual(rgba(getattr(STOCK.road, name)), expected, "stock drifted from upstream")
+    for name, expected in UPSTREAM_OFFROAD.items():
+      with self.subTest(color=name):
+        self.assertEqual(rgba(getattr(STOCK.offroad, name)), expected, "stock drifted from upstream")
 
   def test_upstream_reference_covers_whole_schema(self):
     # a color added to the schema without a recorded upstream value would go unchecked above
     self.assertEqual(set(UPSTREAM_HUD), set(HudColors.__dataclass_fields__))
     self.assertEqual(set(UPSTREAM_ROAD), set(RoadColors.__dataclass_fields__))
+    self.assertEqual(set(UPSTREAM_OFFROAD), set(OffroadColors.__dataclass_fields__))
 
   def test_every_theme_is_complete(self):
     for name, theme in themes.THEMES.items():
@@ -86,6 +112,8 @@ class TestThemes(unittest.TestCase):
           self.assertIsNotNone(rgba(getattr(theme.hud, color)), f"missing {color}")
         for color in RoadColors.__dataclass_fields__:
           self.assertIsNotNone(rgba(getattr(theme.road, color)), f"missing {color}")
+        for color in OffroadColors.__dataclass_fields__:
+          self.assertIsNotNone(rgba(getattr(theme.offroad, color)), f"missing {color}")
 
   def test_safety_colors_identical_in_every_theme(self):
     for name, theme in themes.THEMES.items():
@@ -96,12 +124,33 @@ class TestThemes(unittest.TestCase):
             self.assertEqual(rgba(getattr(palette, color)), UPSTREAM_ROAD[color],
                              "safety cues (road edge, lead markers, alert prompt/critical) must not be themed")
 
+  def test_status_colors_identical_in_every_theme(self):
+    for name, theme in themes.THEMES.items():
+      palettes = [("offroad", theme.offroad)] + ([("night_offroad", theme.night_offroad)] if theme.night_offroad else [])
+      for palette_name, palette in palettes:
+        for color in STATUS_OFFROAD_COLORS:
+          with self.subTest(theme=name, palette=palette_name, color=color):
+            self.assertEqual(rgba(getattr(palette, color)), UPSTREAM_OFFROAD[color],
+                             "sidebar status colors (good/warning/danger) must not be themed")
+
+  def test_offroad_proxy_follows_active_theme(self):
+    themes.set_active("stock")
+    self.assertEqual(rgba(themes.OFFROAD_COLORS.PANEL_BG), UPSTREAM_OFFROAD["PANEL_BG"])
+
+    themes.set_active("cascade")
+    self.assertNotEqual(rgba(themes.OFFROAD_COLORS.PANEL_BG), UPSTREAM_OFFROAD["PANEL_BG"])
+
+    themes.set_active("stock")
+    self.assertEqual(rgba(themes.OFFROAD_COLORS.PANEL_BG), UPSTREAM_OFFROAD["PANEL_BG"])
+
   def test_night_palettes_are_all_or_nothing(self):
     # half a night variant would render a mixed day/night screen
     for name, theme in themes.THEMES.items():
       with self.subTest(theme=name):
         self.assertEqual(theme.night_hud is None, theme.night_road is None,
                          "a theme must define both night palettes or neither")
+        self.assertEqual(theme.night_hud is None, theme.night_offroad is None,
+                         "a theme must define all three night palettes or none")
 
   def test_night_proxy_switches_palette(self):
     themes.set_active("cascade")
@@ -190,6 +239,8 @@ class TestThemes(unittest.TestCase):
       _ = themes.HUD_COLORS.NOT_A_COLOR
     with self.assertRaises(AttributeError):
       _ = themes.ROAD_COLORS.NOT_A_COLOR
+    with self.assertRaises(AttributeError):
+      _ = themes.OFFROAD_COLORS.NOT_A_COLOR
 
 
 if __name__ == "__main__":

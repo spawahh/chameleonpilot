@@ -8,6 +8,7 @@ from openpilot.selfdrive.ui.layouts.settings.firehose import FirehoseLayout
 from openpilot.selfdrive.ui.layouts.settings.software import SoftwareLayout
 from openpilot.selfdrive.ui.layouts.settings.themes import ThemesLayout
 from openpilot.selfdrive.ui.layouts.settings.toggles import TogglesLayout
+from openpilot.selfdrive.ui.themes import OFFROAD_COLORS
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -23,11 +24,10 @@ NAV_BTN_HEIGHT = 110
 PANEL_MARGIN = 50
 
 # Colors
+# Themed ones are read from OFFROAD_COLORS at the call site, not bound here: a module
+# constant would snapshot at import and never follow a theme switch. Black and white are
+# neutral contrast scaffolding and stay literal.
 SIDEBAR_COLOR = rl.BLACK
-PANEL_COLOR = rl.Color(41, 41, 41, 255)
-CLOSE_BTN_COLOR = rl.Color(41, 41, 41, 255)
-CLOSE_BTN_PRESSED = rl.Color(59, 59, 59, 255)
-TEXT_NORMAL = rl.Color(128, 128, 128, 255)
 TEXT_SELECTED = rl.WHITE
 
 
@@ -95,7 +95,7 @@ class SettingsLayout(Widget):
 
     pressed = (rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_LEFT) and
                rl.check_collision_point_rec(rl.get_mouse_position(), close_btn_rect))
-    close_color = CLOSE_BTN_PRESSED if pressed else CLOSE_BTN_COLOR
+    close_color = OFFROAD_COLORS.CLOSE_BTN_PRESSED if pressed else OFFROAD_COLORS.CLOSE_BTN_BG
     rl.draw_rectangle_rounded(close_btn_rect, 1.0, 20, close_color)
 
     icon_color = rl.Color(255, 255, 255, 255) if not pressed else rl.Color(220, 220, 220, 255)
@@ -124,7 +124,7 @@ class SettingsLayout(Widget):
 
       # Button styling
       is_selected = panel_type == self._current_panel
-      text_color = TEXT_SELECTED if is_selected else TEXT_NORMAL
+      text_color = TEXT_SELECTED if is_selected else OFFROAD_COLORS.TEXT_DIM
       # Draw button text (right-aligned)
       panel_name = tr(panel_info.name)
       text_size = measure_text_cached(self._font_medium, panel_name, 65)
@@ -140,7 +140,7 @@ class SettingsLayout(Widget):
 
   def _draw_current_panel(self, rect: rl.Rectangle):
     rl.draw_rectangle_rounded(
-      rl.Rectangle(rect.x + 10, rect.y + 10, rect.width - 20, rect.height - 20), 0.04, 30, PANEL_COLOR
+      rl.Rectangle(rect.x + 10, rect.y + 10, rect.width - 20, rect.height - 20), 0.04, 30, OFFROAD_COLORS.PANEL_BG
     )
     content_rect = rl.Rectangle(rect.x + PANEL_MARGIN, rect.y + 25, rect.width - (PANEL_MARGIN * 2), rect.height - 50)
     # rl.draw_rectangle_rounded(content_rect, 0.03, 30, PANEL_COLOR)
