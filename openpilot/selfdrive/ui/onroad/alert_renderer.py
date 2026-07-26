@@ -2,6 +2,7 @@ import time
 import pyray as rl
 from dataclasses import dataclass
 from openpilot.cereal import messaging, log
+from openpilot.selfdrive.ui.themes import ROAD_COLORS
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.common.hardware import TICI
 from openpilot.system.ui.lib.application import gui_app, FontWeight
@@ -30,12 +31,14 @@ ALERT_HEIGHTS = {
 SELFDRIVE_STATE_TIMEOUT = 5  # Seconds
 SELFDRIVE_UNRESPONSIVE_TIMEOUT = 10  # Seconds
 
-# Constants
-ALERT_COLORS = {
-  AlertStatus.normal: rl.Color(0x15, 0x15, 0x15, 0xF1),      # #151515 with alpha 0xF1
-  AlertStatus.userPrompt: rl.Color(0xDA, 0x6F, 0x25, 0xF1),  # #DA6F25 with alpha 0xF1
-  AlertStatus.critical: rl.Color(0xC9, 0x22, 0x31, 0xF1),    # #C92231 with alpha 0xF1
-}
+def _alert_bg_color(status) -> rl.Color:
+  # Resolved per frame so a theme switch takes effect without a restart.
+  # userPrompt/critical are pinned identical across themes (see test_themes).
+  if status == AlertStatus.userPrompt:
+    return ROAD_COLORS.ALERT_PROMPT_BG
+  if status == AlertStatus.critical:
+    return ROAD_COLORS.ALERT_CRITICAL_BG
+  return ROAD_COLORS.ALERT_NORMAL_BG
 
 
 @dataclass
@@ -139,7 +142,7 @@ class AlertRenderer(Widget):
                         rect.width - ALERT_MARGIN * 2, h - ALERT_MARGIN * 2)
 
   def _draw_background(self, rect: rl.Rectangle, alert: Alert) -> None:
-    color = ALERT_COLORS.get(alert.status, ALERT_COLORS[AlertStatus.normal])
+    color = _alert_bg_color(alert.status)
 
     if alert.size != AlertSize.full:
       roundness = ALERT_BORDER_RADIUS / (min(rect.width, rect.height) / 2)

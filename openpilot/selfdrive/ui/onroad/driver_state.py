@@ -3,6 +3,7 @@ import pyray as rl
 from openpilot.cereal import log
 from dataclasses import dataclass
 from openpilot.selfdrive.ui import UI_BORDER_SIZE
+from openpilot.selfdrive.ui.themes import ROAD_COLORS, with_alpha
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets import Widget
@@ -72,11 +73,8 @@ class DriverStateRenderer(Widget):
     # Load the driver face icon
     self.dm_img = gui_app.texture("icons/driver_face.png", IMG_SIZE, IMG_SIZE)
 
-    # Colors
+    # Colors (the arc colors live in the theme; resolved per frame in _render)
     self.white_color = rl.Color(255, 255, 255, 255)
-    self.arc_color = rl.Color(26, 242, 66, 255)
-    self.engaged_color = rl.Color(26, 242, 66, 255)
-    self.disengaged_color = rl.Color(139, 139, 139, 255)
 
     self.set_visible(lambda: (ui_state.sm["selfdriveState"].alertSize == AlertSize.none and
                               ui_state.sm.recv_frame["driverStateV2"] > ui_state.started_frame))
@@ -96,15 +94,16 @@ class DriverStateRenderer(Widget):
     self.white_color.a = int(255 * opacity)
     rl.draw_spline_linear(self.face_lines, len(self.face_lines), 5.2, self.white_color)
 
-    # Set arc color based on engaged state
-    self.arc_color = self.engaged_color if ui_state.engaged else self.disengaged_color
-    self.arc_color.a = int(0.4 * 255 * (1.0 - self.dm_fade_state))  # Fade out when inactive
+    # Set arc color based on engaged state; with_alpha copies, so the theme's
+    # palette is never mutated by the per-frame fade
+    base = ROAD_COLORS.DM_ENGAGED if ui_state.engaged else ROAD_COLORS.DM_DISENGAGED
+    arc_color = with_alpha(base, int(0.4 * 255 * (1.0 - self.dm_fade_state)))  # Fade out when inactive
 
     # Draw arcs
     if self.h_arc_data:
-      rl.draw_spline_linear(self.h_arc_lines, len(self.h_arc_lines), self.h_arc_data.thickness, self.arc_color)
+      rl.draw_spline_linear(self.h_arc_lines, len(self.h_arc_lines), self.h_arc_data.thickness, arc_color)
     if self.v_arc_data:
-      rl.draw_spline_linear(self.v_arc_lines, len(self.v_arc_lines), self.v_arc_data.thickness, self.arc_color)
+      rl.draw_spline_linear(self.v_arc_lines, len(self.v_arc_lines), self.v_arc_data.thickness, arc_color)
 
   def _update_state(self):
     """Update the driver monitoring state based on model data"""
