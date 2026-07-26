@@ -40,9 +40,18 @@ def load_from_params(params: Params | None = None) -> Theme:
   return set_active(p.get(THEME_PARAM, return_default=True))
 
 
-class _HudColorProxy:
+class _ColorProxy:
+  def __init__(self, group: str):
+    self._group = group
+
   def __getattr__(self, name: str) -> rl.Color:
-    return getattr(_active.hud, name)
+    return getattr(getattr(_active, self._group), name)
 
 
-HUD_COLORS = _HudColorProxy()
+HUD_COLORS = _ColorProxy("hud")
+ROAD_COLORS = _ColorProxy("road")
+
+
+def with_alpha(color: rl.Color, alpha: int) -> rl.Color:
+  """Themed RGB with a per-frame alpha (model confidence, distance fade)."""
+  return rl.Color(color.r, color.g, color.b, alpha)

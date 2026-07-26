@@ -7,7 +7,7 @@ grey, so the three engagement states are distinguishable without reading text.
 """
 import pyray as rl
 
-from openpilot.selfdrive.ui.themes.base import HudColors, Theme
+from openpilot.selfdrive.ui.themes.base import HudColors, RoadColors, Theme
 
 CASCADE = Theme(
   name="cascade",
@@ -27,5 +27,21 @@ CASCADE = Theme(
     BORDER_TRANSLUCENT=rl.Color(140, 190, 205, 90),
     HEADER_GRADIENT_START=rl.Color(6, 14, 22, 140),
     HEADER_GRADIENT_END=rl.BLANK,
+  ),
+  road=RoadColors(
+    BORDER_DISENGAGED=rl.Color(14, 32, 46, 255),   # deeper blue-grey than stock
+    BORDER_OVERRIDE=rl.Color(168, 143, 102, 255),  # muted echo of the amber OVERRIDE
+    BORDER_ENGAGED=rl.Color(16, 105, 110, 255),    # deep teal, pairs with ENGAGED
+    PATH_THROTTLE_NEAR=rl.Color(13, 220, 205, 102),
+    PATH_THROTTLE_MID=rl.Color(90, 235, 215, 89),
+    PATH_THROTTLE_FAR=rl.Color(90, 235, 215, 0),
+    PATH_NO_THROTTLE_NEAR=rl.Color(235, 242, 245, 102),
+    PATH_NO_THROTTLE_MID=rl.Color(235, 242, 245, 89),
+    PATH_NO_THROTTLE_FAR=rl.Color(235, 242, 245, 0),
+    LANE_LINE=rl.Color(240, 246, 250, 255),
+    # Safety cues stay stock in every theme: red road edge, amber glow, red chevron.
+    ROAD_EDGE=rl.Color(255, 0, 0, 255),
+    LEAD_GLOW=rl.Color(218, 202, 37, 255),
+    LEAD_CHEVRON=rl.Color(201, 34, 49, 255),
   ),
 )

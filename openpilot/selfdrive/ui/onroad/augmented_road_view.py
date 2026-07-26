@@ -9,6 +9,7 @@ from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
 from openpilot.selfdrive.ui.onroad.cameraview import CameraView
+from openpilot.selfdrive.ui.themes import ROAD_COLORS
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame
 from openpilot.common.transformations.orientation import rot_from_euler
@@ -19,11 +20,13 @@ ROAD_CAM = VisionStreamType.VISION_STREAM_ROAD
 WIDE_CAM = VisionStreamType.VISION_STREAM_WIDE_ROAD
 DEFAULT_DEVICE_CAMERA = DEVICE_CAMERAS["tici", "ar0231"]
 
-BORDER_COLORS = {
-  UIStatus.DISENGAGED: rl.Color(0x12, 0x28, 0x39, 0xFF),  # Blue for disengaged state
-  UIStatus.OVERRIDE: rl.Color(0x89, 0x92, 0x8D, 0xFF),  # Gray for override state
-  UIStatus.ENGAGED: rl.Color(0x16, 0x7F, 0x40, 0xFF),  # Green for engaged state
-}
+def _border_color(status: UIStatus) -> rl.Color:
+  # Resolved per frame so a theme switch takes effect without a restart
+  if status == UIStatus.ENGAGED:
+    return ROAD_COLORS.BORDER_ENGAGED
+  if status == UIStatus.OVERRIDE:
+    return ROAD_COLORS.BORDER_OVERRIDE
+  return ROAD_COLORS.BORDER_DISENGAGED
 
 WIDE_CAM_MAX_SPEED = 10.0  # m/s (22 mph)
 ROAD_CAM_MIN_SPEED = 15.0  # m/s (34 mph)
@@ -33,7 +36,7 @@ INF_POINT = np.array([1000.0, 0.0, 0.0])
 class AugmentedRoadView(CameraView):
   def __init__(self, stream_type: VisionStreamType = VisionStreamType.VISION_STREAM_ROAD):
     super().__init__("camerad", stream_type)
-    self._set_placeholder_color(BORDER_COLORS[UIStatus.DISENGAGED])
+    self._set_placeholder_color(_border_color(UIStatus.DISENGAGED))
 
     self.device_camera: DeviceCameraConfig | None = None
     self.view_from_calib = view_frame_from_device_frame.copy()
@@ -104,7 +107,7 @@ class AugmentedRoadView(CameraView):
   def _draw_border(self, rect: rl.Rectangle):
     rl.draw_rectangle_lines_ex(rect, UI_BORDER_SIZE, rl.BLACK)
     border_roundness = 0.12
-    border_color = BORDER_COLORS.get(ui_state.status, BORDER_COLORS[UIStatus.DISENGAGED])
+    border_color = _border_color(ui_state.status)
     border_rect = rl.Rectangle(rect.x + UI_BORDER_SIZE, rect.y + UI_BORDER_SIZE,
                                rect.width - 2 * UI_BORDER_SIZE, rect.height - 2 * UI_BORDER_SIZE)
     rl.draw_rectangle_rounded_lines_ex(border_rect, border_roundness, 10, UI_BORDER_SIZE, border_color)

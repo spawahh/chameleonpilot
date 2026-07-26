@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
 from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
+from openpilot.selfdrive.ui.themes import ROAD_COLORS, with_alpha
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
@@ -16,17 +17,14 @@ CLIP_MARGIN = 500
 MIN_DRAW_DISTANCE = 10.0
 MAX_DRAW_DISTANCE = 100.0
 
-THROTTLE_COLORS = [
-  rl.Color(13, 248, 122, 102),   # HSLF(148/360, 0.94, 0.51, 0.4)
-  rl.Color(114, 255, 92, 89),    # HSLF(112/360, 1.0, 0.68, 0.35)
-  rl.Color(114, 255, 92, 0),     # HSLF(112/360, 1.0, 0.68, 0.0)
-]
 
-NO_THROTTLE_COLORS = [
-  rl.Color(242, 242, 242, 102), # HSLF(148/360, 0.0, 0.95, 0.4)
-  rl.Color(242, 242, 242, 89),  # HSLF(112/360, 0.0, 0.95, 0.35)
-  rl.Color(242, 242, 242, 0),   # HSLF(112/360, 0.0, 0.95, 0.0)
-]
+def _throttle_colors() -> list[rl.Color]:
+  # Read from the active theme per frame so a switch needs no restart
+  return [ROAD_COLORS.PATH_THROTTLE_NEAR, ROAD_COLORS.PATH_THROTTLE_MID, ROAD_COLORS.PATH_THROTTLE_FAR]
+
+
+def _no_throttle_colors() -> list[rl.Color]:
+  return [ROAD_COLORS.PATH_NO_THROTTLE_NEAR, ROAD_COLORS.PATH_NO_THROTTLE_MID, ROAD_COLORS.PATH_NO_THROTTLE_FAR]
 
 
 @dataclass
@@ -263,7 +261,7 @@ class ModelRenderer(Widget):
         continue
 
       alpha = np.clip(self._lane_line_probs[i], 0.0, 0.7)
-      color = rl.Color(255, 255, 255, int(alpha * 255))
+      color = with_alpha(ROAD_COLORS.LANE_LINE, int(alpha * 255))
       draw_polygon(self._rect, lane_line.projected_points, color)
 
     for i, road_edge in enumerate(self._road_edges):
@@ -271,7 +269,7 @@ class ModelRenderer(Widget):
         continue
 
       alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0)
-      color = rl.Color(255, 0, 0, int(alpha * 255))
+      color = with_alpha(ROAD_COLORS.ROAD_EDGE, int(alpha * 255))
       draw_polygon(self._rect, road_edge.projected_points, color)
 
   def _draw_path(self, sm):
@@ -291,7 +289,7 @@ class ModelRenderer(Widget):
     else:
       # Blend throttle/no throttle colors based on transition
       blend_factor = round(self._blend_filter.x * 100) / 100
-      blended_colors = self._blend_colors(NO_THROTTLE_COLORS, THROTTLE_COLORS, blend_factor)
+      blended_colors = self._blend_colors(_no_throttle_colors(), _throttle_colors(), blend_factor)
       gradient = Gradient(
         start=(0.0, 1.0),  # Bottom of path
         end=(0.0, 0.0),  # Top of path
@@ -306,8 +304,8 @@ class ModelRenderer(Widget):
       if not lead.glow or not lead.chevron:
         continue
 
-      rl.draw_triangle_fan(lead.glow, len(lead.glow), rl.Color(218, 202, 37, 255))
-      rl.draw_triangle_fan(lead.chevron, len(lead.chevron), rl.Color(201, 34, 49, lead.fill_alpha))
+      rl.draw_triangle_fan(lead.glow, len(lead.glow), ROAD_COLORS.LEAD_GLOW)
+      rl.draw_triangle_fan(lead.chevron, len(lead.chevron), with_alpha(ROAD_COLORS.LEAD_CHEVRON, lead.fill_alpha))
 
   @staticmethod
   def _get_path_length_idx(pos_x_array: np.ndarray, path_distance: float) -> int:
