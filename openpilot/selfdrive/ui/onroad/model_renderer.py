@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
 from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
+from openpilot.selfdrive.ui.chameleon.onroad.rainbow_path import RainbowPath
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
@@ -53,6 +54,7 @@ class ModelRenderer(Widget):
     self._road_edge_stds = np.zeros(2, dtype=np.float32)
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     self._path_offset_z = HEIGHT_INIT[0]
+    self._rainbow_path = RainbowPath()
 
     # Initialize ModelPoints objects
     self._path = ModelPoints()
@@ -281,6 +283,10 @@ class ModelRenderer(Widget):
 
     allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
     self._blend_filter.update(int(allow_throttle))
+
+    if ui_state.rainbow_path:
+      self._rainbow_path.draw_rainbow_path(self._rect, self._path)
+      return
 
     if self._experimental_mode:
       # Draw with acceleration coloring

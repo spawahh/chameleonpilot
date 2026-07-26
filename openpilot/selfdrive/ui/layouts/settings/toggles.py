@@ -35,6 +35,7 @@ DESCRIPTIONS = {
     "Show an icon at the left or right edge of the onroad screen when your car reports a vehicle in that blind spot. " +
     "Requires a car that sends blind spot monitoring over CAN."
   ),
+  "RainbowMode": tr_noop("Draw the predicted driving path as a moving rainbow instead of the normal path colours."),
   "ShowTurnSignals": tr_noop("Show a blinking arrow on the onroad screen while a turn signal is on."),
 }
 
@@ -99,6 +100,12 @@ class TogglesLayout(Widget):
         lambda: tr("Blind Spot Indicators"),
         DESCRIPTIONS["BlindSpot"],
         "warning.png",
+        False,
+      ),
+      "RainbowMode": (
+        lambda: tr("Rainbow Path"),
+        DESCRIPTIONS["RainbowMode"],
+        "road.png",
         False,
       ),
       "ShowTurnSignals": (
