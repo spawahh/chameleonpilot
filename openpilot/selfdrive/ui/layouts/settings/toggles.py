@@ -31,6 +31,10 @@ DESCRIPTIONS = {
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
+  "DriverAlerts": tr_noop(
+    "Show a pop-up while stopped and disengaged when the traffic light ahead turns green (no lead car and the driving model sees an open road) " +
+    "or when the car in front starts to drive away. Visual only, no sound."
+  ),
 }
 
 
@@ -88,6 +92,12 @@ class TogglesLayout(Widget):
         lambda: tr("Use Metric System"),
         DESCRIPTIONS["IsMetric"],
         "metric.png",
+        False,
+      ),
+      "DriverAlerts": (
+        lambda: tr("Green Light and Lead Departure Alerts"),
+        DESCRIPTIONS["DriverAlerts"],
+        "warning.png",
         False,
       ),
     }
