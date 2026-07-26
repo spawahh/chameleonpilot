@@ -125,6 +125,7 @@ class _ColorProxy:
 
 HUD_COLORS = _ColorProxy("hud")
 ROAD_COLORS = _ColorProxy("road")
+OFFROAD_COLORS = _ColorProxy("offroad")
 
 
 def with_alpha(color: rl.Color, alpha: int) -> rl.Color:

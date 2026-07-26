@@ -3,6 +3,7 @@ import time
 from dataclasses import dataclass
 from collections.abc import Callable
 from openpilot.cereal import log
+from openpilot.selfdrive.ui.themes import OFFROAD_COLORS
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos, FONT_SCALE
 from openpilot.system.ui.lib.multilang import tr, tr_noop
@@ -22,21 +23,10 @@ ThermalStatus = log.DeviceState.ThermalStatus
 NetworkType = log.DeviceState.NetworkType
 
 
-# Color scheme
-class Colors:
-  WHITE = rl.WHITE
-  WHITE_DIM = rl.Color(255, 255, 255, 85)
-  GRAY = rl.Color(84, 84, 84, 255)
-
-  # Status colors
-  GOOD = rl.WHITE
-  WARNING = rl.Color(218, 202, 37, 255)
-  DANGER = rl.Color(201, 34, 49, 255)
-
-  # UI elements
-  METRIC_BORDER = rl.Color(255, 255, 255, 85)
-  BUTTON_NORMAL = rl.WHITE
-  BUTTON_PRESSED = rl.Color(255, 255, 255, 166)
+# Color scheme: resolved from the active theme per access, so a switch from settings
+# lands on the next frame. Field names are unchanged, so every Colors.X call site below
+# is untouched. Stock values live in ui/themes/stock.py.
+Colors = OFFROAD_COLORS
 
 
 NETWORK_TYPES = {

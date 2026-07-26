@@ -51,13 +51,38 @@ class RoadColors:
 
 
 @dataclass(frozen=True)
+class OffroadColors:
+  # Offroad chrome: sidebar and the settings panel. The sidebar field names match its
+  # existing Colors class exactly, so aliasing that class to the proxy leaves all of
+  # its call sites untouched. Same rules as above: names are stable, no defaults.
+  WHITE: rl.Color
+  WHITE_DIM: rl.Color
+  GRAY: rl.Color
+  # Status semantics. White/amber/red mean good/warning/danger on the sidebar metrics,
+  # so a theme must not repaint them — pinned identical across themes by test.
+  GOOD: rl.Color
+  WARNING: rl.Color
+  DANGER: rl.Color
+  METRIC_BORDER: rl.Color
+  BUTTON_NORMAL: rl.Color
+  BUTTON_PRESSED: rl.Color
+  # settings panel
+  PANEL_BG: rl.Color
+  CLOSE_BTN_BG: rl.Color
+  CLOSE_BTN_PRESSED: rl.Color
+  TEXT_DIM: rl.Color
+
+
+@dataclass(frozen=True)
 class Theme:
   name: str  # param value: stable, lowercase, never translated
   label: str  # shown in the picker, translated at display time
   hud: HudColors
   road: RoadColors
+  offroad: OffroadColors
   # Optional night variant. A theme without one keeps its day palette at night
   # (stock stays bit-identical to upstream around the clock). Night palettes are
-  # full HudColors/RoadColors — same completeness guarantee as day.
+  # full HudColors/RoadColors/OffroadColors — same completeness guarantee as day.
   night_hud: HudColors | None = None
   night_road: RoadColors | None = None
+  night_offroad: OffroadColors | None = None

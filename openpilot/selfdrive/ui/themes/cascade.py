@@ -7,7 +7,7 @@ grey, so the three engagement states are distinguishable without reading text.
 """
 import pyray as rl
 
-from openpilot.selfdrive.ui.themes.base import HudColors, RoadColors, Theme
+from openpilot.selfdrive.ui.themes.base import HudColors, OffroadColors, RoadColors, Theme
 
 CASCADE = Theme(
   name="cascade",
@@ -50,6 +50,22 @@ CASCADE = Theme(
     ALERT_PROMPT_BG=rl.Color(0xDA, 0x6F, 0x25, 0xF1),
     ALERT_CRITICAL_BG=rl.Color(0xC9, 0x22, 0x31, 0xF1),
   ),
+  offroad=OffroadColors(
+    WHITE=rl.Color(240, 246, 250, 255),
+    WHITE_DIM=rl.Color(210, 228, 238, 85),
+    GRAY=rl.Color(74, 88, 96, 255),
+    # Status semantics stay stock in every theme (pinned by test).
+    GOOD=rl.WHITE,
+    WARNING=rl.Color(218, 202, 37, 255),
+    DANGER=rl.Color(201, 34, 49, 255),
+    METRIC_BORDER=rl.Color(140, 190, 205, 90),  # matches the HUD's tinted border
+    BUTTON_NORMAL=rl.Color(240, 246, 250, 255),
+    BUTTON_PRESSED=rl.Color(140, 190, 205, 166),
+    PANEL_BG=rl.Color(22, 32, 40, 255),          # cool slate instead of neutral 41s
+    CLOSE_BTN_BG=rl.Color(22, 32, 40, 255),
+    CLOSE_BTN_PRESSED=rl.Color(34, 48, 58, 255),
+    TEXT_DIM=rl.Color(122, 140, 150, 255),
+  ),
   # Night: same hues, lower luminance and saturation, so nothing glares in a dark
   # cabin but every state stays recognisable. Safety cues remain stock (tested).
   night_hud=HudColors(
@@ -87,5 +103,20 @@ CASCADE = Theme(
     ALERT_NORMAL_BG=rl.Color(6, 10, 14, 0xF1),
     ALERT_PROMPT_BG=rl.Color(0xDA, 0x6F, 0x25, 0xF1),
     ALERT_CRITICAL_BG=rl.Color(0xC9, 0x22, 0x31, 0xF1),
+  ),
+  night_offroad=OffroadColors(
+    WHITE=rl.Color(190, 202, 212, 255),
+    WHITE_DIM=rl.Color(170, 188, 200, 70),
+    GRAY=rl.Color(58, 70, 78, 255),
+    GOOD=rl.WHITE,
+    WARNING=rl.Color(218, 202, 37, 255),
+    DANGER=rl.Color(201, 34, 49, 255),
+    METRIC_BORDER=rl.Color(100, 140, 155, 70),
+    BUTTON_NORMAL=rl.Color(190, 202, 212, 255),
+    BUTTON_PRESSED=rl.Color(100, 140, 155, 140),
+    PANEL_BG=rl.Color(12, 18, 24, 255),
+    CLOSE_BTN_BG=rl.Color(12, 18, 24, 255),
+    CLOSE_BTN_PRESSED=rl.Color(22, 32, 40, 255),
+    TEXT_DIM=rl.Color(98, 114, 124, 255),
   ),
 )

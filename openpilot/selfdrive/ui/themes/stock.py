@@ -1,12 +1,13 @@
 """Stock openpilot colours, verbatim from selfdrive/ui/onroad/hud_renderer.py,
-model_renderer.py and augmented_road_view.py @ 27122bbd2.
+model_renderer.py, augmented_road_view.py, layouts/sidebar.py and
+layouts/settings/settings.py @ 27122bbd2.
 
 Do not tune these. This is the fallback when a theme fails to load, and the baseline
 test_themes.py asserts against to prove a theme change altered nothing upstream.
 """
 import pyray as rl
 
-from openpilot.selfdrive.ui.themes.base import HudColors, RoadColors, Theme
+from openpilot.selfdrive.ui.themes.base import HudColors, OffroadColors, RoadColors, Theme
 
 STOCK = Theme(
   name="stock",
@@ -46,5 +47,22 @@ STOCK = Theme(
     ALERT_NORMAL_BG=rl.Color(0x15, 0x15, 0x15, 0xF1),
     ALERT_PROMPT_BG=rl.Color(0xDA, 0x6F, 0x25, 0xF1),
     ALERT_CRITICAL_BG=rl.Color(0xC9, 0x22, 0x31, 0xF1),
+  ),
+  offroad=OffroadColors(
+    # sidebar.py Colors
+    WHITE=rl.WHITE,
+    WHITE_DIM=rl.Color(255, 255, 255, 85),
+    GRAY=rl.Color(84, 84, 84, 255),
+    GOOD=rl.WHITE,
+    WARNING=rl.Color(218, 202, 37, 255),
+    DANGER=rl.Color(201, 34, 49, 255),
+    METRIC_BORDER=rl.Color(255, 255, 255, 85),
+    BUTTON_NORMAL=rl.WHITE,
+    BUTTON_PRESSED=rl.Color(255, 255, 255, 166),
+    # settings/settings.py module constants
+    PANEL_BG=rl.Color(41, 41, 41, 255),
+    CLOSE_BTN_BG=rl.Color(41, 41, 41, 255),
+    CLOSE_BTN_PRESSED=rl.Color(59, 59, 59, 255),
+    TEXT_DIM=rl.Color(128, 128, 128, 255),
   ),
 )
