@@ -42,6 +42,12 @@ class RoadColors:
   ROAD_EDGE: rl.Color
   LEAD_GLOW: rl.Color
   LEAD_CHEVRON: rl.Color  # alpha replaced per frame with the distance-based fill
+  # driver-monitoring arc; alpha replaced per frame with the fade
+  DM_ENGAGED: rl.Color
+  DM_DISENGAGED: rl.Color
+  ALERT_NORMAL_BG: rl.Color
+  ALERT_PROMPT_BG: rl.Color
+  ALERT_CRITICAL_BG: rl.Color
 
 
 @dataclass(frozen=True)

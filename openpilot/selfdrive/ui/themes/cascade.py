@@ -39,9 +39,15 @@ CASCADE = Theme(
     PATH_NO_THROTTLE_MID=rl.Color(235, 242, 245, 89),
     PATH_NO_THROTTLE_FAR=rl.Color(235, 242, 245, 0),
     LANE_LINE=rl.Color(240, 246, 250, 255),
-    # Safety cues stay stock in every theme: red road edge, amber glow, red chevron.
+    # Safety cues stay stock in every theme: red road edge, amber glow, red chevron,
+    # and the prompt/critical alert backgrounds.
     ROAD_EDGE=rl.Color(255, 0, 0, 255),
     LEAD_GLOW=rl.Color(218, 202, 37, 255),
     LEAD_CHEVRON=rl.Color(201, 34, 49, 255),
+    DM_ENGAGED=rl.Color(86, 199, 190, 255),     # teal, pairs with ENGAGED
+    DM_DISENGAGED=rl.Color(120, 138, 150, 255),
+    ALERT_NORMAL_BG=rl.Color(10, 16, 21, 0xF1),
+    ALERT_PROMPT_BG=rl.Color(0xDA, 0x6F, 0x25, 0xF1),
+    ALERT_CRITICAL_BG=rl.Color(0xC9, 0x22, 0x31, 0xF1),
   ),
 )

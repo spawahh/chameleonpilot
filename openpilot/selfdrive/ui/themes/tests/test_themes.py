@@ -40,10 +40,15 @@ UPSTREAM_ROAD = {
   "ROAD_EDGE": (255, 0, 0, 255),
   "LEAD_GLOW": (218, 202, 37, 255),
   "LEAD_CHEVRON": (201, 34, 49, 255),
+  "DM_ENGAGED": (26, 242, 66, 255),
+  "DM_DISENGAGED": (139, 139, 139, 255),
+  "ALERT_NORMAL_BG": (0x15, 0x15, 0x15, 0xF1),
+  "ALERT_PROMPT_BG": (0xDA, 0x6F, 0x25, 0xF1),
+  "ALERT_CRITICAL_BG": (0xC9, 0x22, 0x31, 0xF1),
 }
 
 # Colors that must be identical in every theme: they are safety cues, not styling.
-SAFETY_ROAD_COLORS = ("ROAD_EDGE", "LEAD_GLOW", "LEAD_CHEVRON")
+SAFETY_ROAD_COLORS = ("ROAD_EDGE", "LEAD_GLOW", "LEAD_CHEVRON", "ALERT_PROMPT_BG", "ALERT_CRITICAL_BG")
 
 
 def rgba(color) -> tuple[int, int, int, int]:

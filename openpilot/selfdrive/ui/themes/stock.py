@@ -41,5 +41,10 @@ STOCK = Theme(
     ROAD_EDGE=rl.Color(255, 0, 0, 255),
     LEAD_GLOW=rl.Color(218, 202, 37, 255),
     LEAD_CHEVRON=rl.Color(201, 34, 49, 255),
+    DM_ENGAGED=rl.Color(26, 242, 66, 255),
+    DM_DISENGAGED=rl.Color(139, 139, 139, 255),
+    ALERT_NORMAL_BG=rl.Color(0x15, 0x15, 0x15, 0xF1),
+    ALERT_PROMPT_BG=rl.Color(0xDA, 0x6F, 0x25, 0xF1),
+    ALERT_CRITICAL_BG=rl.Color(0xC9, 0x22, 0x31, 0xF1),
   ),
 )
