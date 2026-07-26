@@ -61,6 +61,8 @@ def rgba(color) -> tuple[int, int, int, int]:
 class TestThemes(unittest.TestCase):
   def tearDown(self):
     themes.set_active(themes.DEFAULT_THEME.name)
+    themes.set_night_mode("auto")
+    themes.night.is_night = False
 
   def test_stock_matches_upstream(self):
     for name, expected in UPSTREAM_HUD.items():
@@ -87,10 +89,71 @@ class TestThemes(unittest.TestCase):
 
   def test_safety_colors_identical_in_every_theme(self):
     for name, theme in themes.THEMES.items():
-      for color in SAFETY_ROAD_COLORS:
-        with self.subTest(theme=name, color=color):
-          self.assertEqual(rgba(getattr(theme.road, color)), UPSTREAM_ROAD[color],
-                           "safety cues (road edge, lead markers) must not be themed")
+      palettes = [("road", theme.road)] + ([("night_road", theme.night_road)] if theme.night_road else [])
+      for palette_name, palette in palettes:
+        for color in SAFETY_ROAD_COLORS:
+          with self.subTest(theme=name, palette=palette_name, color=color):
+            self.assertEqual(rgba(getattr(palette, color)), UPSTREAM_ROAD[color],
+                             "safety cues (road edge, lead markers, alert prompt/critical) must not be themed")
+
+  def test_night_palettes_are_all_or_nothing(self):
+    # half a night variant would render a mixed day/night screen
+    for name, theme in themes.THEMES.items():
+      with self.subTest(theme=name):
+        self.assertEqual(theme.night_hud is None, theme.night_road is None,
+                         "a theme must define both night palettes or neither")
+
+  def test_night_proxy_switches_palette(self):
+    themes.set_active("cascade")
+    day = rgba(themes.HUD_COLORS.ENGAGED)
+    themes.set_night_mode("on")
+    self.assertNotEqual(rgba(themes.HUD_COLORS.ENGAGED), day)
+    self.assertNotEqual(rgba(themes.ROAD_COLORS.BORDER_ENGAGED), UPSTREAM_ROAD["BORDER_ENGAGED"])
+    themes.set_night_mode("off")
+    self.assertEqual(rgba(themes.HUD_COLORS.ENGAGED), day)
+
+  def test_stock_is_unaffected_by_night(self):
+    # stock has no night palette: it must render bit-identical to upstream around the clock
+    themes.set_active("stock")
+    themes.set_night_mode("on")
+    self.assertEqual(rgba(themes.HUD_COLORS.ENGAGED), UPSTREAM_HUD["ENGAGED"])
+    self.assertEqual(rgba(themes.ROAD_COLORS.BORDER_ENGAGED), UPSTREAM_ROAD["BORDER_ENGAGED"])
+
+  def test_auto_mode_needs_dwell_and_hysteresis(self):
+    r = themes._NightResolver()
+    r.set_mode("auto")
+    # dark reading alone must not flip it: dwell first
+    self.assertFalse(r.tick(10.0, now=0.0))
+    self.assertFalse(r.tick(10.0, now=themes.NIGHT_DWELL_S - 0.1))
+    self.assertTrue(r.tick(10.0, now=themes.NIGHT_DWELL_S))
+    # readings inside the hysteresis band (enter < 30 < 40 < 45 exit) hold night
+    self.assertTrue(r.tick(40.0, now=100.0))
+    self.assertTrue(r.tick(40.0, now=200.0))
+    # a brief bright flash (oncoming headlights) resets, but doesn't flip
+    self.assertTrue(r.tick(90.0, now=300.0))
+    self.assertTrue(r.tick(10.0, now=301.0))  # dark again: pending day cancelled
+    self.assertTrue(r.tick(90.0, now=400.0))
+    self.assertFalse(r.tick(90.0, now=400.0 + themes.NIGHT_DWELL_S))
+
+  def test_auto_mode_holds_state_without_camera(self):
+    r = themes._NightResolver()
+    r.set_mode("auto")
+    r.is_night = True
+    self.assertTrue(r.tick(-1, now=0.0))
+    self.assertTrue(r.tick(-1, now=1000.0))
+
+  def test_manual_mode_ignores_ambient(self):
+    r = themes._NightResolver()
+    r.set_mode("off")
+    self.assertFalse(r.tick(0.0, now=0.0))
+    self.assertFalse(r.tick(0.0, now=1000.0))
+    r.set_mode("on")
+    self.assertTrue(r.tick(100.0, now=2000.0))
+
+  def test_unknown_night_mode_falls_back_to_auto(self):
+    r = themes._NightResolver()
+    r.set_mode("dusk-ish")
+    self.assertEqual(r.mode, "auto")
 
   def test_unknown_theme_falls_back_to_stock(self):
     themes.set_active("cascade")

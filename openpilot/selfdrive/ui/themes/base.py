@@ -56,3 +56,8 @@ class Theme:
   label: str  # shown in the picker, translated at display time
   hud: HudColors
   road: RoadColors
+  # Optional night variant. A theme without one keeps its day palette at night
+  # (stock stays bit-identical to upstream around the clock). Night palettes are
+  # full HudColors/RoadColors — same completeness guarantee as day.
+  night_hud: HudColors | None = None
+  night_road: RoadColors | None = None

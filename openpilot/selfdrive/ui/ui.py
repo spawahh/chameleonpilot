@@ -30,6 +30,7 @@ def main():
   for should_render, frame_time, cpu_time in gui_app.render():
     extra_start = time.monotonic()
     ui_state.update()
+    themes.night_tick(ui_state.light_sensor)
 
     if should_render:
       # reaffine after power save offlines our core

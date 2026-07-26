@@ -10,6 +10,13 @@ from openpilot.system.ui.widgets.scroller_tici import Scroller
 # Description constants
 DESCRIPTIONS = {
   'hud_theme': tr_noop("Color scheme for the onroad display. Stock matches upstream openpilot exactly."),
+  'night_mode': tr_noop("Switch to the theme's night palette in the dark. Auto follows ambient light."),
+}
+
+NIGHT_MODE_LABELS = {
+  "auto": tr_noop("Auto"),
+  "on": tr_noop("On"),
+  "off": tr_noop("Off"),
 }
 
 
@@ -19,13 +26,19 @@ class ThemesLayout(Widget):
 
     self._params = Params()
     self._theme_dialog: MultiOptionDialog | None = None
+    self._night_dialog: MultiOptionDialog | None = None
 
     self._theme_btn = button_item(lambda: tr("HUD Theme"), self._current_label,
                                   lambda: tr(DESCRIPTIONS['hud_theme']), callback=self._show_theme_dialog)
-    self._scroller = Scroller([self._theme_btn], line_separator=True, spacing=0)
+    self._night_btn = button_item(lambda: tr("Night Mode"), self._current_night_label,
+                                  lambda: tr(DESCRIPTIONS['night_mode']), callback=self._show_night_dialog)
+    self._scroller = Scroller([self._theme_btn, self._night_btn], line_separator=True, spacing=0)
 
   def _current_label(self) -> str:
     return tr(themes.active().label)
+
+  def _current_night_label(self) -> str:
+    return tr(NIGHT_MODE_LABELS.get(themes.night.mode, NIGHT_MODE_LABELS["auto"]))
 
   def show_event(self):
     super().show_event()
@@ -47,3 +60,14 @@ class ThemesLayout(Widget):
 
     self._theme_dialog = MultiOptionDialog(tr("HUD Theme"), options, self._current_label(), callback=handle_theme_selection)
     gui_app.push_widget(self._theme_dialog)
+
+  def _show_night_dialog(self):
+    options = {tr(label): mode for mode, label in NIGHT_MODE_LABELS.items()}
+
+    def handle_night_selection(result: DialogResult):
+      if result == DialogResult.CONFIRM and self._night_dialog:
+        themes.set_night_mode(options[self._night_dialog.selection], params=self._params)
+      self._night_dialog = None
+
+    self._night_dialog = MultiOptionDialog(tr("Night Mode"), options, self._current_night_label(), callback=handle_night_selection)
+    gui_app.push_widget(self._night_dialog)
