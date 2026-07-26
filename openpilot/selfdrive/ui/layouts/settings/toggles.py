@@ -35,6 +35,7 @@ DESCRIPTIONS = {
     "Show an icon at the left or right edge of the onroad screen when your car reports a vehicle in that blind spot. " +
     "Requires a car that sends blind spot monitoring over CAN."
   ),
+  "ShowTurnSignals": tr_noop("Show a blinking arrow on the onroad screen while a turn signal is on."),
 }
 
 
@@ -98,6 +99,12 @@ class TogglesLayout(Widget):
         lambda: tr("Blind Spot Indicators"),
         DESCRIPTIONS["BlindSpot"],
         "warning.png",
+        False,
+      ),
+      "ShowTurnSignals": (
+        lambda: tr("Display Turn Signals"),
+        DESCRIPTIONS["ShowTurnSignals"],
+        "arrow-right.png",
         False,
       ),
     }

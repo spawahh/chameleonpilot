@@ -77,6 +77,7 @@ class UIState:
     self.always_on_dm: bool = self.params.get_bool("AlwaysOnDM")
     self.experimental_mode: bool = self.params.get_bool("ExperimentalMode")
     self.blindspot: bool = self.params.get_bool("BlindSpot")
+    self.turn_signals: bool = self.params.get_bool("ShowTurnSignals")
     self.usbgpu: bool = False
     self.usbgpu_compiled: bool = usbgpu_compiled()
     self.usbgpu_active: bool = self.params.get_bool("UsbGpuActive")
@@ -208,6 +209,7 @@ class UIState:
     self.always_on_dm = self.params.get_bool("AlwaysOnDM")
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
     self.blindspot = self.params.get_bool("BlindSpot")
+    self.turn_signals = self.params.get_bool("ShowTurnSignals")
     # keep usbgpu UI active until offroad transition when gpu disappears
     self.usbgpu = self.sm["deviceState"].chestnutPresent or (self.usbgpu and self.started)
     if not self.usbgpu_compiled:

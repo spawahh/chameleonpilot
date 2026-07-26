@@ -2,6 +2,7 @@ import pyray as rl
 from dataclasses import dataclass
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.chameleon.onroad.blind_spot_indicators import BlindSpotIndicators
+from openpilot.selfdrive.ui.chameleon.onroad.turn_signal import TurnSignalController
 from openpilot.selfdrive.ui.onroad.exp_button import ExpButton
 from openpilot.selfdrive.ui.themes import HUD_COLORS as COLORS
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
@@ -55,6 +56,7 @@ class HudRenderer(Widget):
 
     self._exp_button: ExpButton = ExpButton(UI_CONFIG.button_size, UI_CONFIG.wheel_icon_size)
     self._blind_spot_indicators: BlindSpotIndicators = BlindSpotIndicators()
+    self._turn_signal_controller: TurnSignalController = TurnSignalController()
 
   def _update_state(self) -> None:
     """Update HUD state based on car state and controls state."""
@@ -85,6 +87,7 @@ class HudRenderer(Widget):
     self.speed = max(0.0, v_ego * speed_conversion)
 
     self._blind_spot_indicators.update()
+    self._turn_signal_controller.update()
 
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
@@ -108,6 +111,7 @@ class HudRenderer(Widget):
     self._exp_button.render(rl.Rectangle(button_x, button_y, UI_CONFIG.button_size, UI_CONFIG.button_size))
 
     self._blind_spot_indicators.render(rect)
+    self._turn_signal_controller.render(rect)
 
   def user_interacting(self) -> bool:
     return self._exp_button.is_pressed
