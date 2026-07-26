@@ -31,6 +31,10 @@ DESCRIPTIONS = {
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
+  "BlindSpot": tr_noop(
+    "Show an icon at the left or right edge of the onroad screen when your car reports a vehicle in that blind spot. " +
+    "Requires a car that sends blind spot monitoring over CAN."
+  ),
 }
 
 
@@ -88,6 +92,12 @@ class TogglesLayout(Widget):
         lambda: tr("Use Metric System"),
         DESCRIPTIONS["IsMetric"],
         "metric.png",
+        False,
+      ),
+      "BlindSpot": (
+        lambda: tr("Blind Spot Indicators"),
+        DESCRIPTIONS["BlindSpot"],
+        "warning.png",
         False,
       ),
     }
