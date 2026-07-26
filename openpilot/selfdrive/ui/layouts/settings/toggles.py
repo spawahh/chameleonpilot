@@ -31,6 +31,10 @@ DESCRIPTIONS = {
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
+  "RocketFuel": tr_noop(
+    "Show a bar on the left of the onroad screen for the acceleration the car is actually producing. " +
+    "Green is speeding up, red is slowing down. This is what the car is doing, not what openpilot asked for."
+  ),
 }
 
 
@@ -88,6 +92,12 @@ class TogglesLayout(Widget):
         lambda: tr("Use Metric System"),
         DESCRIPTIONS["IsMetric"],
         "metric.png",
+        False,
+      ),
+      "RocketFuel": (
+        lambda: tr("Real-time Acceleration Bar"),
+        DESCRIPTIONS["RocketFuel"],
+        "speed_limit.png",
         False,
       ),
     }
