@@ -31,6 +31,14 @@ DESCRIPTIONS = {
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
+  "AutoLaneChangeTimer": tr_noop(
+    "Start the lane change this long after the turn signal, without waiting for a nudge on the steering wheel. Default is Nudge. " +
+    "Use caution: only signal when traffic and road conditions permit."
+  ),
+  "AutoLaneChangeBsmDelay": tr_noop(
+    "Delay the auto lane change by one second when blind spot monitoring detects a vehicle. " +
+    "Requires a car that sends blind spot monitoring over CAN, and an auto lane change timer other than Nudge."
+  ),
 }
 
 
@@ -90,6 +98,12 @@ class TogglesLayout(Widget):
         "metric.png",
         False,
       ),
+      "AutoLaneChangeBsmDelay": (
+        lambda: tr("Auto Lane Change: Delay with Blind Spot"),
+        DESCRIPTIONS["AutoLaneChangeBsmDelay"],
+        "warning.png",
+        False,
+      ),
     }
 
     self._long_personality_setting = multiple_button_item(
@@ -100,6 +114,16 @@ class TogglesLayout(Widget):
       callback=self._set_longitudinal_personality,
       selected_index=self._params.get("LongitudinalPersonality", return_default=True),
       icon="speed_limit.png"
+    )
+
+    self._alc_timer_setting = multiple_button_item(
+      lambda: tr("Auto Lane Change by Blinker"),
+      lambda: tr(DESCRIPTIONS["AutoLaneChangeTimer"]),
+      buttons=[lambda: tr("Nudge"), lambda: tr("Nudgeless"), "0.5s", "1s", "2s", "3s"],
+      button_width=160,
+      callback=self._set_auto_lane_change_timer,
+      selected_index=max(self._params.get("AutoLaneChangeTimer", return_default=True), 0),
+      icon="chffr_wheel.png"
     )
 
     self._toggles = {}
@@ -134,6 +158,10 @@ class TogglesLayout(Widget):
       # insert longitudinal personality after NDOG toggle
       if param == "DisengageOnAccelerator":
         self._toggles["LongitudinalPersonality"] = self._long_personality_setting
+
+      # insert the auto lane change timer ahead of its blind-spot delay toggle
+      if param == "IsMetric":
+        self._toggles["AutoLaneChangeTimer"] = self._alc_timer_setting
 
     self._update_experimental_mode_icon()
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
@@ -243,3 +271,7 @@ class TogglesLayout(Widget):
 
   def _set_longitudinal_personality(self, button_index: int):
     self._params.put("LongitudinalPersonality", button_index, block=True)
+
+  def _set_auto_lane_change_timer(self, button_index: int):
+    # button order matches AutoLaneChangeMode values (NUDGE=0 .. THREE_SECONDS=5)
+    self._params.put("AutoLaneChangeTimer", button_index, block=True)
