@@ -31,6 +31,7 @@ DESCRIPTIONS = {
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
+  "ShowTurnSignals": tr_noop("Show a blinking arrow on the onroad screen while a turn signal is on."),
 }
 
 
@@ -88,6 +89,12 @@ class TogglesLayout(Widget):
         lambda: tr("Use Metric System"),
         DESCRIPTIONS["IsMetric"],
         "metric.png",
+        False,
+      ),
+      "ShowTurnSignals": (
+        lambda: tr("Display Turn Signals"),
+        DESCRIPTIONS["ShowTurnSignals"],
+        "arrow-right.png",
         False,
       ),
     }
