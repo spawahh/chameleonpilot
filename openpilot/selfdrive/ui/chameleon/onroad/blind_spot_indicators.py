@@ -1,0 +1,53 @@
+"""
+Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
+
+This file is part of sunnypilot and is licensed under the MIT License.
+See the LICENSE.md file in the root directory for more details.
+
+Ported to chameleonpilot from sunnypilot's selfdrive/ui/sunnypilot/onroad/blind_spot_indicators.py.
+"""
+import pyray as rl
+
+from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.system.ui.lib.application import gui_app
+from openpilot.common.filter_simple import FirstOrderFilter
+
+BLIND_SPOT_MARGIN_X = 20  # Distance from edge of screen
+BLIND_SPOT_Y_OFFSET = 100  # Distance from top of screen
+ALPHA_EPSILON = 0.01  # Below this the icon is invisible, so skip the draw
+
+
+class BlindSpotIndicators:
+  def __init__(self):
+    self._txt_blind_spot_left: rl.Texture = gui_app.texture('icons_mici/onroad/blind_spot_left.png', 108, 128)
+    self._txt_blind_spot_right: rl.Texture = gui_app.texture('icons_mici/onroad/blind_spot_left.png', 108, 128, flip_x=True)
+
+    self._blind_spot_left_alpha_filter = FirstOrderFilter(0, 0.15, 1 / gui_app.target_fps)
+    self._blind_spot_right_alpha_filter = FirstOrderFilter(0, 0.15, 1 / gui_app.target_fps)
+
+  def update(self) -> None:
+    CS = ui_state.sm['carState']
+
+    self._blind_spot_left_alpha_filter.update(1.0 if CS.leftBlindspot else 0.0)
+    self._blind_spot_right_alpha_filter.update(1.0 if CS.rightBlindspot else 0.0)
+
+  @property
+  def detected(self) -> bool:
+    return ui_state.blindspot and (self._blind_spot_left_alpha_filter.x > ALPHA_EPSILON or
+                                   self._blind_spot_right_alpha_filter.x > ALPHA_EPSILON)
+
+  def render(self, rect: rl.Rectangle) -> None:
+    if not ui_state.blindspot:
+      return
+
+    if self._blind_spot_left_alpha_filter.x > ALPHA_EPSILON:
+      pos_x = int(rect.x + BLIND_SPOT_MARGIN_X)
+      pos_y = int(rect.y + BLIND_SPOT_Y_OFFSET)
+      alpha = int(255 * self._blind_spot_left_alpha_filter.x)
+      rl.draw_texture_ex(self._txt_blind_spot_left, rl.Vector2(pos_x, pos_y), 0.0, 1.0, rl.Color(255, 255, 255, alpha))
+
+    if self._blind_spot_right_alpha_filter.x > ALPHA_EPSILON:
+      pos_x = int(rect.x + rect.width - BLIND_SPOT_MARGIN_X - self._txt_blind_spot_right.width)
+      pos_y = int(rect.y + BLIND_SPOT_Y_OFFSET)
+      alpha = int(255 * self._blind_spot_right_alpha_filter.x)
+      rl.draw_texture_ex(self._txt_blind_spot_right, rl.Vector2(pos_x, pos_y), 0.0, 1.0, rl.Color(255, 255, 255, alpha))
