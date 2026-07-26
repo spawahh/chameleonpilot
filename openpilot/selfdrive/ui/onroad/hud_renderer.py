@@ -2,6 +2,7 @@ import pyray as rl
 from dataclasses import dataclass
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.onroad.exp_button import ExpButton
+from openpilot.selfdrive.ui.themes import HUD_COLORS as COLORS
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
@@ -33,27 +34,8 @@ class FontSizes:
   set_speed: int = 90
 
 
-@dataclass(frozen=True)
-class Colors:
-  WHITE = rl.WHITE
-  DISENGAGED = rl.Color(145, 155, 149, 255)
-  OVERRIDE = rl.Color(145, 155, 149, 255)  # Added
-  ENGAGED = rl.Color(128, 216, 166, 255)
-  DISENGAGED_BG = rl.Color(0, 0, 0, 153)
-  OVERRIDE_BG = rl.Color(145, 155, 149, 204)
-  ENGAGED_BG = rl.Color(128, 216, 166, 204)
-  GREY = rl.Color(166, 166, 166, 255)
-  DARK_GREY = rl.Color(114, 114, 114, 255)
-  BLACK_TRANSLUCENT = rl.Color(0, 0, 0, 166)
-  WHITE_TRANSLUCENT = rl.Color(255, 255, 255, 200)
-  BORDER_TRANSLUCENT = rl.Color(255, 255, 255, 75)
-  HEADER_GRADIENT_START = rl.Color(0, 0, 0, 114)
-  HEADER_GRADIENT_END = rl.BLANK
-
-
 UI_CONFIG = UIConfig()
 FONT_SIZES = FontSizes()
-COLORS = Colors()
 
 
 class HudRenderer(Widget):
