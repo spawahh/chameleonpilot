@@ -2,6 +2,7 @@ import pyray as rl
 from dataclasses import dataclass
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.chameleon.onroad.blind_spot_indicators import BlindSpotIndicators
+from openpilot.selfdrive.ui.chameleon.onroad.rocket_fuel import RocketFuel
 from openpilot.selfdrive.ui.chameleon.onroad.turn_signal import TurnSignalController
 from openpilot.selfdrive.ui.onroad.exp_button import ExpButton
 from openpilot.selfdrive.ui.themes import HUD_COLORS as COLORS
@@ -56,6 +57,7 @@ class HudRenderer(Widget):
 
     self._exp_button: ExpButton = ExpButton(UI_CONFIG.button_size, UI_CONFIG.wheel_icon_size)
     self._blind_spot_indicators: BlindSpotIndicators = BlindSpotIndicators()
+    self._rocket_fuel: RocketFuel = RocketFuel()
     self._turn_signal_controller: TurnSignalController = TurnSignalController()
 
   def _update_state(self) -> None:
@@ -112,6 +114,7 @@ class HudRenderer(Widget):
 
     self._blind_spot_indicators.render(rect)
     self._turn_signal_controller.render(rect)
+    self._rocket_fuel.render(rect, ui_state.sm)
 
   def user_interacting(self) -> bool:
     return self._exp_button.is_pressed

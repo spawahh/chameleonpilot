@@ -36,6 +36,10 @@ DESCRIPTIONS = {
     "Requires a car that sends blind spot monitoring over CAN."
   ),
   "RainbowMode": tr_noop("Draw the predicted driving path as a moving rainbow instead of the normal path colours."),
+  "RocketFuel": tr_noop(
+    "Show a bar on the left of the onroad screen for the acceleration the car is actually producing. " +
+    "Green is speeding up, red is slowing down. This is what the car is doing, not what openpilot asked for."
+  ),
   "ShowTurnSignals": tr_noop("Show a blinking arrow on the onroad screen while a turn signal is on."),
 }
 
@@ -106,6 +110,12 @@ class TogglesLayout(Widget):
         lambda: tr("Rainbow Path"),
         DESCRIPTIONS["RainbowMode"],
         "road.png",
+        False,
+      ),
+      "RocketFuel": (
+        lambda: tr("Real-time Acceleration Bar"),
+        DESCRIPTIONS["RocketFuel"],
+        "speed_limit.png",
         False,
       ),
       "ShowTurnSignals": (
