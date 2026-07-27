@@ -6,10 +6,13 @@ See the LICENSE.md file in the root directory for more details.
 
 Ported to chameleonpilot from sunnypilot's
 sunnypilot/selfdrive/controls/lib/auto_lane_change.py, unchanged except for
-the import paths. The OFF mode (-1) exists for parity with sunnypilot's param
-values but is not exposed in the settings UI; unlike sunnypilot it does not
-disable lane changes entirely (that needed an extra edit to the upstream lane
-change state machine), it just behaves like NUDGE.
+the import paths and one chameleonpilot addition: the enable_bsm gate.
+Automatic (nudgeless/timed) lane changes are only allowed when the car
+reports blind spot monitoring (CP.enableBsm); without it the steering nudge
+is always required. The OFF mode (-1) exists for parity with sunnypilot's
+param values but is not exposed in the settings UI; unlike sunnypilot it does
+not disable lane changes entirely (that needed an extra edit to the upstream
+lane change state machine), it just behaves like NUDGE.
 """
 from openpilot.cereal import log
 
@@ -41,8 +44,9 @@ ONE_SECOND_DELAY = -1
 
 
 class AutoLaneChangeController:
-  def __init__(self, desire_helper):
+  def __init__(self, desire_helper, enable_bsm: bool = False):
     self.DH = desire_helper
+    self.enable_bsm = enable_bsm
     self.params = Params()
 
     self.lane_change_wait_timer = 0.0
@@ -89,9 +93,16 @@ class AutoLaneChangeController:
 
   def update_allowed(self) -> bool:
     # Auto lane change allowed if:
-    # 1. A valid delay is set (non-zero)
-    # 2. Brake wasn't previously pressed
-    # 3. We've waited long enough
+    # 1. The car reports blind spot monitoring (BSM)
+    # 2. A valid delay is set (non-zero)
+    # 3. Brake wasn't previously pressed
+    # 4. We've waited long enough
+
+    if not self.enable_bsm:
+      # Without BSM the blindspot_detected gate in desire_helper.py is permanently
+      # False, so an automatic lane change would start with no cross-traffic check.
+      # The steering nudge is always required on these cars.
+      return False
 
     if self.lane_change_set_timer in (AutoLaneChangeMode.OFF, AutoLaneChangeMode.NUDGE):
       return False

@@ -33,6 +33,8 @@ DESCRIPTIONS = {
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
   "AutoLaneChangeTimer": tr_noop(
     "Start the lane change this long after the turn signal, without waiting for a nudge on the steering wheel. Default is Nudge. " +
+    "Requires a car that sends blind spot monitoring (BSM) over CAN. On cars without BSM, every setting behaves like Nudge: " +
+    "the steering nudge is always required. " +
     "Use caution: only signal when traffic and road conditions permit."
   ),
   "AutoLaneChangeBsmDelay": tr_noop(
@@ -196,6 +198,11 @@ class TogglesLayout(Widget):
     )
 
     if ui_state.CP is not None:
+      # nudgeless auto lane change needs the car's blind spot monitoring (BSM)
+      has_bsm = ui_state.CP.enableBsm
+      self._alc_timer_setting.action_item.set_enabled(has_bsm)
+      self._toggles["AutoLaneChangeBsmDelay"].action_item.set_enabled(has_bsm)
+
       if ui_state.has_longitudinal_control:
         self._toggles["ExperimentalMode"].action_item.set_enabled(True)
         self._toggles["ExperimentalMode"].set_description(e2e_description)

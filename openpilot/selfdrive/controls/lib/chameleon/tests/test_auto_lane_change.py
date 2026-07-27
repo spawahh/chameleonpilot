@@ -10,6 +10,7 @@ from pytest/parameterized to unittest/subTest. The DesireHelper tests at the
 bottom are new: they pin the hook in desire_helper.py, which the controller
 tests alone do not touch.
 """
+import types
 import unittest
 
 from openpilot.cereal import log
@@ -42,8 +43,10 @@ class FakeCarState:
     self.brakePressed = False
 
 
-def make_helper(mode, bsm_delay=False):
-  DH = DesireHelper()
+def make_helper(mode, bsm_delay=False, enable_bsm=True):
+  # enable_bsm=True by default so the auto-mode tests exercise the modes;
+  # the BSM gate itself is pinned separately in TestBsmGate
+  DH = DesireHelper(types.SimpleNamespace(enableBsm=enable_bsm))
   DH.alc.read_params = lambda: None  # pin the mode; update_params re-reads every 50 frames
   DH.alc.lane_change_set_timer = mode
   DH.alc.lane_change_bsm_delay = bsm_delay
@@ -161,6 +164,44 @@ class TestAutoLaneChangeController(unittest.TestCase):
   def test_controller_is_wired_into_desire_helper(self):
     dh = DesireHelper()
     self.assertIsInstance(dh.alc, AutoLaneChangeController)
+
+
+class TestBsmGate(unittest.TestCase):
+  """Without blind spot monitoring (BSM) the nudge is always required: the
+  blindspot_detected gate in desire_helper.py is permanently False on those
+  cars, so nudgeless would mean no cross-traffic check at all."""
+
+  def test_default_is_no_bsm(self):
+    """No CP (or a CP without enableBsm=True) means the gate stays closed."""
+    self.assertFalse(DesireHelper().alc.enable_bsm)
+    self.assertFalse(DesireHelper(types.SimpleNamespace(enableBsm=False)).alc.enable_bsm)
+    self.assertTrue(DesireHelper(types.SimpleNamespace(enableBsm=True)).alc.enable_bsm)
+
+  def test_no_bsm_never_allows_auto_lane_change(self):
+    """Every auto mode stays disallowed without BSM, however long we wait."""
+    for mode in AUTO_MODES:
+      with self.subTest(mode=mode):
+        alc = make_helper(mode, enable_bsm=False).alc
+        for _ in range(int(10.0 / DT_MDL)):
+          alc.update_lane_change(blindspot_detected=False, brake_pressed=False)
+        self.assertFalse(alc.auto_lane_change_allowed)
+
+  def test_no_bsm_nudgeless_still_requires_torque(self):
+    """End to end: nudgeless set on a car without BSM behaves exactly like NUDGE."""
+    DH = make_helper(AutoLaneChangeMode.NUDGELESS, enable_bsm=False)
+    cs = FakeCarState()
+    cs.leftBlinker = True
+
+    for _ in range(int(5.0 / DT_MDL)):
+      DH.update(cs, lateral_active=True, lane_change_prob=0.0)
+    self.assertEqual(DH.lane_change_state, LaneChangeState.preLaneChange)
+
+    cs.steeringPressed = True
+    cs.steeringTorque = 1.0
+    DH.update(cs, lateral_active=True, lane_change_prob=0.0)
+    DH.update(cs, lateral_active=True, lane_change_prob=0.0)
+    self.assertEqual(DH.lane_change_state, LaneChangeState.laneChangeStarting)
+    self.assertEqual(DH.desire, log.Desire.laneChangeLeft)
 
 
 class TestDesireHelperAutoLaneChange(unittest.TestCase):
