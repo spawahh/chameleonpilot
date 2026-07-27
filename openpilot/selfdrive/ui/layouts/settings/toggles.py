@@ -31,6 +31,16 @@ DESCRIPTIONS = {
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
+  "AutoLaneChangeTimer": tr_noop(
+    "Start the lane change this long after the turn signal, without waiting for a nudge on the steering wheel. Default is Nudge. " +
+    "Requires a car that sends blind spot monitoring (BSM) over CAN. On cars without BSM, every setting behaves like Nudge: " +
+    "the steering nudge is always required. " +
+    "Use caution: only signal when traffic and road conditions permit."
+  ),
+  "AutoLaneChangeBsmDelay": tr_noop(
+    "Delay the auto lane change by one second when blind spot monitoring detects a vehicle. " +
+    "Requires a car that sends blind spot monitoring over CAN, and an auto lane change timer other than Nudge."
+  ),
   "BlindSpot": tr_noop(
     "Show an icon at the left or right edge of the onroad screen when your car reports a vehicle in that blind spot. " +
     "Requires a car that sends blind spot monitoring over CAN."
@@ -104,6 +114,12 @@ class TogglesLayout(Widget):
         "metric.png",
         False,
       ),
+      "AutoLaneChangeBsmDelay": (
+        lambda: tr("Auto Lane Change: Delay with Blind Spot"),
+        DESCRIPTIONS["AutoLaneChangeBsmDelay"],
+        "warning.png",
+        False,
+      ),
       "BlindSpot": (
         lambda: tr("Blind Spot Indicators"),
         DESCRIPTIONS["BlindSpot"],
@@ -146,6 +162,16 @@ class TogglesLayout(Widget):
       icon="speed_limit.png"
     )
 
+    self._alc_timer_setting = multiple_button_item(
+      lambda: tr("Auto Lane Change by Blinker"),
+      lambda: tr(DESCRIPTIONS["AutoLaneChangeTimer"]),
+      buttons=[lambda: tr("Nudge"), lambda: tr("Nudgeless"), "0.5s", "1s", "2s", "3s"],
+      button_width=160,
+      callback=self._set_auto_lane_change_timer,
+      selected_index=max(self._params.get("AutoLaneChangeTimer", return_default=True), 0),
+      icon="chffr_wheel.png"
+    )
+
     self._toggles = {}
     self._locked_toggles = set()
     for param, (title, desc, icon, needs_restart) in self._toggle_defs.items():
@@ -178,6 +204,10 @@ class TogglesLayout(Widget):
       # insert longitudinal personality after NDOG toggle
       if param == "DisengageOnAccelerator":
         self._toggles["LongitudinalPersonality"] = self._long_personality_setting
+
+      # insert the auto lane change timer ahead of its blind-spot delay toggle
+      if param == "IsMetric":
+        self._toggles["AutoLaneChangeTimer"] = self._alc_timer_setting
 
     self._update_experimental_mode_icon()
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
@@ -212,6 +242,11 @@ class TogglesLayout(Widget):
     )
 
     if ui_state.CP is not None:
+      # nudgeless auto lane change needs the car's blind spot monitoring (BSM)
+      has_bsm = ui_state.CP.enableBsm
+      self._alc_timer_setting.action_item.set_enabled(has_bsm)
+      self._toggles["AutoLaneChangeBsmDelay"].action_item.set_enabled(has_bsm)
+
       if ui_state.has_longitudinal_control:
         self._toggles["ExperimentalMode"].action_item.set_enabled(True)
         self._toggles["ExperimentalMode"].set_description(e2e_description)
@@ -287,3 +322,7 @@ class TogglesLayout(Widget):
 
   def _set_longitudinal_personality(self, button_index: int):
     self._params.put("LongitudinalPersonality", button_index, block=True)
+
+  def _set_auto_lane_change_timer(self, button_index: int):
+    # button order matches AutoLaneChangeMode values (NUDGE=0 .. THREE_SECONDS=5)
+    self._params.put("AutoLaneChangeTimer", button_index, block=True)
