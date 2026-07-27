@@ -35,6 +35,10 @@ DESCRIPTIONS = {
     "Show an icon at the left or right edge of the onroad screen when your car reports a vehicle in that blind spot. " +
     "Requires a car that sends blind spot monitoring over CAN."
   ),
+  "DriverAlerts": tr_noop(
+    "Show a pop-up while stopped and disengaged when the traffic light ahead turns green (no lead car and the driving model sees an open road) " +
+    "or when the car in front starts to drive away. Visual only, no sound."
+  ),
   "RainbowMode": tr_noop("Draw the predicted driving path as a moving rainbow instead of the normal path colours."),
   "RocketFuel": tr_noop(
     "Show a bar on the left of the onroad screen for the acceleration the car is actually producing. " +
@@ -103,6 +107,12 @@ class TogglesLayout(Widget):
       "BlindSpot": (
         lambda: tr("Blind Spot Indicators"),
         DESCRIPTIONS["BlindSpot"],
+        "warning.png",
+        False,
+      ),
+      "DriverAlerts": (
+        lambda: tr("Green Light and Lead Departure Alerts"),
+        DESCRIPTIONS["DriverAlerts"],
         "warning.png",
         False,
       ),

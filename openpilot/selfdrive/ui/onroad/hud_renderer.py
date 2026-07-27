@@ -2,6 +2,7 @@ import pyray as rl
 from dataclasses import dataclass
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.chameleon.onroad.blind_spot_indicators import BlindSpotIndicators
+from openpilot.selfdrive.ui.chameleon.onroad.driver_alerts import DriverAlerts
 from openpilot.selfdrive.ui.chameleon.onroad.rocket_fuel import RocketFuel
 from openpilot.selfdrive.ui.chameleon.onroad.turn_signal import TurnSignalController
 from openpilot.selfdrive.ui.onroad.exp_button import ExpButton
@@ -57,6 +58,7 @@ class HudRenderer(Widget):
 
     self._exp_button: ExpButton = ExpButton(UI_CONFIG.button_size, UI_CONFIG.wheel_icon_size)
     self._blind_spot_indicators: BlindSpotIndicators = BlindSpotIndicators()
+    self._driver_alerts: DriverAlerts = DriverAlerts()
     self._rocket_fuel: RocketFuel = RocketFuel()
     self._turn_signal_controller: TurnSignalController = TurnSignalController()
 
@@ -90,6 +92,7 @@ class HudRenderer(Widget):
 
     self._blind_spot_indicators.update()
     self._turn_signal_controller.update()
+    self._driver_alerts.update()
 
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
@@ -115,6 +118,8 @@ class HudRenderer(Widget):
     self._blind_spot_indicators.render(rect)
     self._turn_signal_controller.render(rect)
     self._rocket_fuel.render(rect, ui_state.sm)
+    # centered pop-up, draws on top of the other widgets
+    self._driver_alerts.render(rect)
 
   def user_interacting(self) -> bool:
     return self._exp_button.is_pressed
