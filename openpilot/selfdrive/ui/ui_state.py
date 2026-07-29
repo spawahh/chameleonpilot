@@ -13,6 +13,7 @@ from openpilot.selfdrive.ui.lib.prime_state import PrimeState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.common.hardware import HARDWARE, PC
 from openpilot.selfdrive.modeld.helpers import usbgpu_compiled
+from openpilot.selfdrive.ui.chameleon import ui_params as chameleon_params
 
 BACKLIGHT_OFFROAD = 65 if HARDWARE.get_device_type() == "mici" else 50
 PARAM_UPDATE_TIME = 1 / 5.0
@@ -77,13 +78,7 @@ class UIState:
     self.is_release = self.params.get_bool("IsReleaseBranch")
     self.always_on_dm: bool = self.params.get_bool("AlwaysOnDM")
     self.experimental_mode: bool = self.params.get_bool("ExperimentalMode")
-    self.blindspot: bool = self.params.get_bool("BlindSpot")
-    self.driver_alerts: bool = self.params.get_bool("DriverAlerts")
-    self.flight_path_vector: bool = self.params.get_bool("FlightPathVector")
-    self.pitch_ladder: bool = self.params.get_bool("PitchLadder")
-    self.rainbow_path: bool = self.params.get_bool("RainbowMode")
-    self.rocket_fuel: bool = self.params.get_bool("RocketFuel")
-    self.turn_signals: bool = self.params.get_bool("ShowTurnSignals")
+    chameleon_params.refresh(self, self.params)
     self.usbgpu: bool = False
     self.usbgpu_compiled: bool = usbgpu_compiled()
     self.usbgpu_active: bool = self.params.get_bool("UsbGpuActive")
@@ -214,13 +209,7 @@ class UIState:
     self.is_metric = self.params.get_bool("IsMetric")
     self.always_on_dm = self.params.get_bool("AlwaysOnDM")
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
-    self.blindspot = self.params.get_bool("BlindSpot")
-    self.driver_alerts = self.params.get_bool("DriverAlerts")
-    self.flight_path_vector = self.params.get_bool("FlightPathVector")
-    self.pitch_ladder = self.params.get_bool("PitchLadder")
-    self.rainbow_path = self.params.get_bool("RainbowMode")
-    self.rocket_fuel = self.params.get_bool("RocketFuel")
-    self.turn_signals = self.params.get_bool("ShowTurnSignals")
+    chameleon_params.refresh(self, self.params)
     # keep usbgpu UI active until offroad transition when gpu disappears
     self.usbgpu = self.sm["deviceState"].chestnutPresent or (self.usbgpu and self.started)
     if not self.usbgpu_compiled:

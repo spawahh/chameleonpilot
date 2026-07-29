@@ -8,6 +8,7 @@ from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.selfdrive.ui.chameleon.toggles import TOGGLE_DEFS as CHAMELEON_TOGGLES, ChameleonToggles
 
 PERSONALITY_TO_INT = log.LongitudinalPersonality.schema.enumerants
 
@@ -31,38 +32,6 @@ DESCRIPTIONS = {
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
-  "AutoLaneChangeTimer": tr_noop(
-    "Start the lane change this long after the turn signal, without waiting for a nudge on the steering wheel. Default is Nudge. " +
-    "Requires a car that sends blind spot monitoring (BSM) over CAN. On cars without BSM, every setting behaves like Nudge: " +
-    "the steering nudge is always required. " +
-    "Use caution: only signal when traffic and road conditions permit."
-  ),
-  "AutoLaneChangeBsmDelay": tr_noop(
-    "Delay the auto lane change by one second when blind spot monitoring detects a vehicle. " +
-    "Requires a car that sends blind spot monitoring over CAN, and an auto lane change timer other than Nudge."
-  ),
-  "BlindSpot": tr_noop(
-    "Show an icon at the left or right edge of the onroad screen when your car reports a vehicle in that blind spot. " +
-    "Requires a car that sends blind spot monitoring over CAN."
-  ),
-  "DriverAlerts": tr_noop(
-    "Show a pop-up while stopped and disengaged when the traffic light ahead turns green (no lead car and the driving model sees an open road) " +
-    "or when the car in front starts to drive away. Visual only, no sound."
-  ),
-  "FlightPathVector": tr_noop(
-    "Draw an aircraft-style flight path vector on the road: a small winged circle marking where the car is actually travelling. " +
-    "It centres itself at low speed, where the direction of travel means nothing."
-  ),
-  "PitchLadder": tr_noop(
-    "Draw an aircraft-style pitch ladder on the road: bars marking every 5 degrees of climb and dive, " +
-    "with a long bar on the horizon. It needs the device to be calibrated, and hides itself until then."
-  ),
-  "RainbowMode": tr_noop("Draw the predicted driving path as a moving rainbow instead of the normal path colours."),
-  "RocketFuel": tr_noop(
-    "Show a bar on the left of the onroad screen for the acceleration the car is actually producing. " +
-    "Green is speeding up, red is slowing down. This is what the car is doing, not what openpilot asked for."
-  ),
-  "ShowTurnSignals": tr_noop("Show a blinking arrow on the onroad screen while a turn signal is on."),
 }
 
 
@@ -122,55 +91,8 @@ class TogglesLayout(Widget):
         "metric.png",
         False,
       ),
-      "AutoLaneChangeBsmDelay": (
-        lambda: tr("Auto Lane Change: Delay with Blind Spot"),
-        DESCRIPTIONS["AutoLaneChangeBsmDelay"],
-        "warning.png",
-        False,
-      ),
-      "BlindSpot": (
-        lambda: tr("Blind Spot Indicators"),
-        DESCRIPTIONS["BlindSpot"],
-        "warning.png",
-        False,
-      ),
-      "DriverAlerts": (
-        lambda: tr("Green Light and Lead Departure Alerts"),
-        DESCRIPTIONS["DriverAlerts"],
-        "warning.png",
-        False,
-      ),
-      "FlightPathVector": (
-        lambda: tr("Flight Path Vector"),
-        DESCRIPTIONS["FlightPathVector"],
-        "road.png",
-        False,
-      ),
-      "PitchLadder": (
-        lambda: tr("Pitch Ladder"),
-        DESCRIPTIONS["PitchLadder"],
-        "road.png",
-        False,
-      ),
-      "RainbowMode": (
-        lambda: tr("Rainbow Path"),
-        DESCRIPTIONS["RainbowMode"],
-        "road.png",
-        False,
-      ),
-      "RocketFuel": (
-        lambda: tr("Real-time Acceleration Bar"),
-        DESCRIPTIONS["RocketFuel"],
-        "speed_limit.png",
-        False,
-      ),
-      "ShowTurnSignals": (
-        lambda: tr("Display Turn Signals"),
-        DESCRIPTIONS["ShowTurnSignals"],
-        "arrow-right.png",
-        False,
-      ),
     }
+    self._toggle_defs |= CHAMELEON_TOGGLES
 
     self._long_personality_setting = multiple_button_item(
       lambda: tr("Driving Personality"),
@@ -182,15 +104,7 @@ class TogglesLayout(Widget):
       icon="speed_limit.png"
     )
 
-    self._alc_timer_setting = multiple_button_item(
-      lambda: tr("Auto Lane Change by Blinker"),
-      lambda: tr(DESCRIPTIONS["AutoLaneChangeTimer"]),
-      buttons=[lambda: tr("Nudge"), lambda: tr("Nudgeless"), "0.5s", "1s", "2s", "3s"],
-      button_width=160,
-      callback=self._set_auto_lane_change_timer,
-      selected_index=max(self._params.get("AutoLaneChangeTimer", return_default=True), 0),
-      icon="chffr_wheel.png"
-    )
+    self._chameleon = ChameleonToggles(self._params)
 
     self._toggles = {}
     self._locked_toggles = set()
@@ -225,9 +139,7 @@ class TogglesLayout(Widget):
       if param == "DisengageOnAccelerator":
         self._toggles["LongitudinalPersonality"] = self._long_personality_setting
 
-      # insert the auto lane change timer ahead of its blind-spot delay toggle
-      if param == "IsMetric":
-        self._toggles["AutoLaneChangeTimer"] = self._alc_timer_setting
+      self._chameleon.insert_after(self._toggles, param)
 
     self._update_experimental_mode_icon()
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
@@ -262,10 +174,7 @@ class TogglesLayout(Widget):
     )
 
     if ui_state.CP is not None:
-      # nudgeless auto lane change needs the car's blind spot monitoring (BSM)
-      has_bsm = ui_state.CP.enableBsm
-      self._alc_timer_setting.action_item.set_enabled(has_bsm)
-      self._toggles["AutoLaneChangeBsmDelay"].action_item.set_enabled(has_bsm)
+      self._chameleon.update(self._toggles, ui_state.CP)
 
       if ui_state.has_longitudinal_control:
         self._toggles["ExperimentalMode"].action_item.set_enabled(True)
@@ -342,7 +251,3 @@ class TogglesLayout(Widget):
 
   def _set_longitudinal_personality(self, button_index: int):
     self._params.put("LongitudinalPersonality", button_index, block=True)
-
-  def _set_auto_lane_change_timer(self, button_index: int):
-    # button order matches AutoLaneChangeMode values (NUDGE=0 .. THREE_SECONDS=5)
-    self._params.put("AutoLaneChangeTimer", button_index, block=True)
