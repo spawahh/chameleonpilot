@@ -32,11 +32,16 @@ car. Treat it accordingly.
   backgrounds and sidebar status colours are identical in every theme, day and night. A theme cannot
   recolour a warning.
 
+- **Aircraft HUD elements** — a flight path vector (a winged circle marking where the car is actually
+  travelling, with a dimmer ghost riding openpilot's planned path when the two disagree) and a pitch
+  ladder. Both default off; the ladder stays hidden until the device is calibrated.
+  **Still being tuned** — the roll direction and the on-road placement have not been confirmed by eye
+  yet, so treat these two as experimental even by this fork's standards.
+
 ### On other branches
 
-- `themes/aircraft` — an aircraft-style HUD layout: flight path vector with a ghost on the planned
-  path, and a pitch ladder. Work in progress.
 - `master` — tracks upstream `commaai/openpilot` unmodified.
+- `themes/aircraft` — where the aircraft HUD work continues; currently the same as `main`.
 
 ### Auto lane change — read this before enabling it
 
