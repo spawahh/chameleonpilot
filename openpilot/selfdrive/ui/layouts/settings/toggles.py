@@ -8,7 +8,6 @@ from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.chameleon.toggles import TOGGLE_DEFS as CHAMELEON_TOGGLES, ChameleonToggles
 
 PERSONALITY_TO_INT = log.LongitudinalPersonality.schema.enumerants
 
@@ -92,7 +91,6 @@ class TogglesLayout(Widget):
         False,
       ),
     }
-    self._toggle_defs |= CHAMELEON_TOGGLES
 
     self._long_personality_setting = multiple_button_item(
       lambda: tr("Driving Personality"),
@@ -103,8 +101,6 @@ class TogglesLayout(Widget):
       selected_index=self._params.get("LongitudinalPersonality", return_default=True),
       icon="speed_limit.png"
     )
-
-    self._chameleon = ChameleonToggles(self._params)
 
     self._toggles = {}
     self._locked_toggles = set()
@@ -139,8 +135,6 @@ class TogglesLayout(Widget):
       if param == "DisengageOnAccelerator":
         self._toggles["LongitudinalPersonality"] = self._long_personality_setting
 
-      self._chameleon.insert_after(self._toggles, param)
-
     self._update_experimental_mode_icon()
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
 
@@ -174,8 +168,6 @@ class TogglesLayout(Widget):
     )
 
     if ui_state.CP is not None:
-      self._chameleon.update(self._toggles, ui_state.CP)
-
       if ui_state.has_longitudinal_control:
         self._toggles["ExperimentalMode"].action_item.set_enabled(True)
         self._toggles["ExperimentalMode"].set_description(e2e_description)

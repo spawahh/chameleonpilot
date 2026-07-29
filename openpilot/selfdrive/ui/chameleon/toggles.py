@@ -1,17 +1,15 @@
 """
-The fork's Toggles rows, kept out of upstream's settings layout.
+The fork's setting definitions, consumed by the Chameleon settings panel.
 
-Every chameleonpilot setting used to be written straight into upstream's
-`layouts/settings/toggles.py`, which grew it by 103 lines — half the fork's
-entire upstream diff, in a file upstream edits whenever it adds a setting.
-That is the rebase surface the fork exists to avoid, so the rows live here and
-upstream keeps five call lines.
+These rows used to be merged into upstream's Toggles panel, which meant
+upstream's `layouts/settings/toggles.py` carried fork lines — rebase surface
+the fork exists to avoid. The Chameleon panel (`ui/chameleon/layouts/settings.py`)
+renders these directly, so that upstream file is now byte-stock.
 
-Display order is dict order. The fork's toggles were already the last eight in
-upstream's dict, so merging with `|=` puts them exactly where they were.
+Row shape matches upstream's `_toggle_defs`: (title, description, icon,
+needs_restart). Dict order is display order within the panel's sections.
 """
 from openpilot.system.ui.lib.multilang import tr, tr_noop
-from openpilot.system.ui.widgets.list_view import multiple_button_item
 
 DESCRIPTIONS = {
   "AutoLaneChangeTimer": tr_noop(
@@ -48,7 +46,7 @@ DESCRIPTIONS = {
   "ShowTurnSignals": tr_noop("Show a blinking arrow on the onroad screen while a turn signal is on."),
 }
 
-# param, title, desc, icon, needs_restart — same shape as upstream's _toggle_defs
+# param -> (title, description, icon, needs_restart), upstream's row shape
 TOGGLE_DEFS = {
   "AutoLaneChangeBsmDelay": (
     lambda: tr("Auto Lane Change: Delay with Blind Spot"),
@@ -99,38 +97,3 @@ TOGGLE_DEFS = {
     False,
   ),
 }
-
-# The fork's non-toggle controls are keyed by the upstream toggle they follow,
-# because upstream builds its rows in a loop and this is the only ordering hook.
-_ALC_TIMER_FOLLOWS = "IsMetric"
-
-
-class ChameleonToggles:
-  """The fork's multi-button controls and the state they own."""
-
-  def __init__(self, params):
-    self._params = params
-    self.alc_timer = multiple_button_item(
-      lambda: tr("Auto Lane Change by Blinker"),
-      lambda: tr(DESCRIPTIONS["AutoLaneChangeTimer"]),
-      buttons=[lambda: tr("Nudge"), lambda: tr("Nudgeless"), "0.5s", "1s", "2s", "3s"],
-      button_width=160,
-      callback=self._set_alc_timer,
-      selected_index=max(self._params.get("AutoLaneChangeTimer", return_default=True), 0),
-      icon="chffr_wheel.png",
-    )
-
-  def insert_after(self, toggles: dict, param: str) -> None:
-    """Place the fork's controls in display order, called per row as upstream builds them."""
-    if param == _ALC_TIMER_FOLLOWS:
-      toggles["AutoLaneChangeTimer"] = self.alc_timer
-
-  def update(self, toggles: dict, CP) -> None:
-    """Nudgeless auto lane change needs the car's blind spot monitoring (BSM)."""
-    has_bsm = CP.enableBsm
-    self.alc_timer.action_item.set_enabled(has_bsm)
-    toggles["AutoLaneChangeBsmDelay"].action_item.set_enabled(has_bsm)
-
-  def _set_alc_timer(self, button_index: int) -> None:
-    # button order matches AutoLaneChangeMode values (NUDGE=0 .. THREE_SECONDS=5)
-    self._params.put("AutoLaneChangeTimer", button_index, block=True)
