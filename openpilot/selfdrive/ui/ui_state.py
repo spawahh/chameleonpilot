@@ -55,6 +55,7 @@ class UIState:
         "selfdriveState",
         "longitudinalPlan",
         "gpsLocationExternal",
+        "gpsLocation",
         "carOutput",
         "carControl",
         "liveParameters",
