@@ -132,6 +132,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     // chameleonpilot: keep the fork's keys in one block so upstream's additions
     // above never conflict with them. Alphabetical within the block.
+    {"AircraftTapes", {PERSISTENT, BOOL}},
     {"AutoLaneChangeBsmDelay", {PERSISTENT, BOOL}},
     {"AutoLaneChangeTimer", {PERSISTENT, INT, "0"}},
     {"BlindSpot", {PERSISTENT, BOOL}},

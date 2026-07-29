@@ -14,6 +14,7 @@ from the widget or params layers here risks an import cycle.
 
 # attribute on ui_state -> params key
 TOGGLES = {
+  "aircraft_tapes": "AircraftTapes",
   "blindspot": "BlindSpot",
   "dm_annunciator": "DmAnnunciator",
   "driver_alerts": "DriverAlerts",

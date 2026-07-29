@@ -37,6 +37,8 @@ class RoadName:
 
     measure = measure_text_cached(self._font, name, TEXT_SIZE, 0)
     width = max(200.0, min(measure.x + 40.0, rect.width - 40.0))
-    pill = rl.Rectangle(rect.x + rect.width / 2 - width / 2, rect.y + 4, width, PILL_HEIGHT)
+    # the heading tape owns the very top when the tapes are on; slide underneath it
+    top = 230.0 if ui_state.aircraft_tapes else 4.0
+    pill = rl.Rectangle(rect.x + rect.width / 2 - width / 2, rect.y + top, width, PILL_HEIGHT)
     rl.draw_rectangle_rounded(pill, 0.5, 10, BG)
     rl.draw_text_ex(self._font, name, rl.Vector2(pill.x + width / 2 - measure.x / 2, pill.y + (PILL_HEIGHT - measure.y) / 2), TEXT_SIZE, 0, TEXT)

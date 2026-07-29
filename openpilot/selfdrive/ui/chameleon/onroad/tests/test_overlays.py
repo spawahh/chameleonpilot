@@ -11,6 +11,7 @@ from openpilot.selfdrive.ui.chameleon.onroad import overlays as ov
 SCREEN = rl.Rectangle(0, 0, 2160, 1080)
 
 WIDGETS = (
+  '_aircraft_tapes',
   '_blind_spot_indicators',
   '_dm_annunciator',
   '_driver_alerts',
@@ -28,9 +29,9 @@ ROAD_SPACE_WIDGETS = ('_flight_path_vector', '_pitch_ladder', '_target_designato
 
 class TestChameleonOverlays(unittest.TestCase):
   def setUp(self):
-    for name in ('BlindSpotIndicators', 'DmAnnunciator', 'DriverAlerts', 'FlightPathVector',
-                 'PitchLadder', 'RoadName', 'RocketFuel', 'SpeedLimitSign', 'TargetDesignator',
-                 'TurnSignalController'):
+    for name in ('AircraftTapes', 'BlindSpotIndicators', 'DmAnnunciator', 'DriverAlerts',
+                 'FlightPathVector', 'PitchLadder', 'RoadName', 'RocketFuel', 'SpeedLimitSign',
+                 'TargetDesignator', 'TurnSignalController'):
       patcher = mock.patch.object(ov, name)
       patcher.start()
       self.addCleanup(patcher.stop)

@@ -15,6 +15,7 @@ import pyray as rl
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.dm_annunciator import DmAnnunciator
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.flight_path_vector import FlightPathVector
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.pitch_ladder import PitchLadder
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft.tapes import AircraftTapes
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.target_designator import TargetDesignator
 from openpilot.selfdrive.ui.chameleon.onroad.blind_spot_indicators import BlindSpotIndicators
 from openpilot.selfdrive.ui.chameleon.onroad.driver_alerts import DriverAlerts
@@ -27,6 +28,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 
 class ChameleonOverlays:
   def __init__(self):
+    self._aircraft_tapes = AircraftTapes()
     self._blind_spot_indicators = BlindSpotIndicators()
     self._dm_annunciator = DmAnnunciator()
     self._driver_alerts = DriverAlerts()
@@ -59,6 +61,7 @@ class ChameleonOverlays:
     self._target_designator.render(rect, ui_state.sm)
     self._flight_path_vector.render(rect, ui_state.sm)
     self._dm_annunciator.render(rect, ui_state.sm)
+    self._aircraft_tapes.render(rect, ui_state.sm)
     self._speed_limit_sign.render(rect, ui_state.sm)
     self._road_name.render(rect, ui_state.sm)
 
