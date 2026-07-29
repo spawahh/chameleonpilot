@@ -1,17 +1,15 @@
 """
-The fork's Toggles rows, kept out of upstream's settings layout.
+The fork's setting definitions, consumed by the Chameleon settings panel.
 
-Every chameleonpilot setting used to be written straight into upstream's
-`layouts/settings/toggles.py`, which grew it by 103 lines — half the fork's
-entire upstream diff, in a file upstream edits whenever it adds a setting.
-That is the rebase surface the fork exists to avoid, so the rows live here and
-upstream keeps five call lines.
+These rows used to be merged into upstream's Toggles panel, which meant
+upstream's `layouts/settings/toggles.py` carried fork lines — rebase surface
+the fork exists to avoid. The Chameleon panel (`ui/chameleon/layouts/settings.py`)
+renders these directly, so that upstream file is now byte-stock.
 
-Display order is dict order. The fork's toggles were already the last eight in
-upstream's dict, so merging with `|=` puts them exactly where they were.
+Row shape matches upstream's `_toggle_defs`: (title, description, icon,
+needs_restart). Dict order is display order within the panel's sections.
 """
 from openpilot.system.ui.lib.multilang import tr, tr_noop
-from openpilot.system.ui.widgets.list_view import multiple_button_item
 
 DESCRIPTIONS = {
   "AutoLaneChangeTimer": tr_noop(
@@ -36,11 +34,32 @@ DESCRIPTIONS = {
     "Draw an aircraft-style flight path vector on the road: a small winged circle marking where the car is actually travelling. " +
     "It centres itself at low speed, where the direction of travel means nothing."
   ),
+  "HideDrivingPath": tr_noop(
+    "Hide the colored driving path that openpilot draws on the road. " +
+    "The flight path vector's ghost already rides the same planned path, so the two show the same information."
+  ),
+  "HideLaneLines": tr_noop(
+    "Hide the white lane lines and the red road-edge lines. " +
+    "The road edges are a warning cue in stock openpilot; hiding them is a clean-screen trade you are choosing to make."
+  ),
+  "HideSpeedCluster": tr_noop(
+    "Hide the MAX set-speed box and the large speed number at the top of the onroad screen. " +
+    "Your car's own dashboard still shows both."
+  ),
+  "HideWheelButton": tr_noop(
+    "Hide the round steering wheel button at the top right of the onroad screen. " +
+    "That button is also the tap target for Experimental Mode, which stays available in the Toggles panel."
+  ),
   "PitchLadder": tr_noop(
     "Draw an aircraft-style pitch ladder on the road: bars marking every 5 degrees of climb and dive, " +
     "with a long bar on the horizon. It needs the device to be calibrated, and hides itself until then."
   ),
   "RainbowMode": tr_noop("Draw the predicted driving path as a moving rainbow instead of the normal path colours."),
+  "TargetDesignator": tr_noop(
+    "Draw aircraft-style corner brackets around the car ahead, with its distance and closing speed. " +
+    "Replaces the stock red lead triangle, and turns red with the same urgency as the car ahead gets close. " +
+    "Works even when your car's own cruise control does the speed keeping."
+  ),
   "RocketFuel": tr_noop(
     "Show a bar on the left of the onroad screen for the acceleration the car is actually producing. " +
     "Green is speeding up, red is slowing down. This is what the car is doing, not what openpilot asked for."
@@ -48,7 +67,7 @@ DESCRIPTIONS = {
   "ShowTurnSignals": tr_noop("Show a blinking arrow on the onroad screen while a turn signal is on."),
 }
 
-# param, title, desc, icon, needs_restart — same shape as upstream's _toggle_defs
+# param -> (title, description, icon, needs_restart), upstream's row shape
 TOGGLE_DEFS = {
   "AutoLaneChangeBsmDelay": (
     lambda: tr("Auto Lane Change: Delay with Blind Spot"),
@@ -80,6 +99,30 @@ TOGGLE_DEFS = {
     "road.png",
     False,
   ),
+  "HideDrivingPath": (
+    lambda: tr("Hide Driving Path"),
+    DESCRIPTIONS["HideDrivingPath"],
+    "road.png",
+    False,
+  ),
+  "HideLaneLines": (
+    lambda: tr("Hide Lane Lines and Road Edges"),
+    DESCRIPTIONS["HideLaneLines"],
+    "road.png",
+    False,
+  ),
+  "HideSpeedCluster": (
+    lambda: tr("Hide MAX and Speed Display"),
+    DESCRIPTIONS["HideSpeedCluster"],
+    "metric.png",
+    False,
+  ),
+  "HideWheelButton": (
+    lambda: tr("Hide Steering Wheel Button"),
+    DESCRIPTIONS["HideWheelButton"],
+    "chffr_wheel.png",
+    False,
+  ),
   "RainbowMode": (
     lambda: tr("Rainbow Path"),
     DESCRIPTIONS["RainbowMode"],
@@ -92,6 +135,12 @@ TOGGLE_DEFS = {
     "speed_limit.png",
     False,
   ),
+  "TargetDesignator": (
+    lambda: tr("Lead Target Designator"),
+    DESCRIPTIONS["TargetDesignator"],
+    "road.png",
+    False,
+  ),
   "ShowTurnSignals": (
     lambda: tr("Display Turn Signals"),
     DESCRIPTIONS["ShowTurnSignals"],
@@ -99,38 +148,3 @@ TOGGLE_DEFS = {
     False,
   ),
 }
-
-# The fork's non-toggle controls are keyed by the upstream toggle they follow,
-# because upstream builds its rows in a loop and this is the only ordering hook.
-_ALC_TIMER_FOLLOWS = "IsMetric"
-
-
-class ChameleonToggles:
-  """The fork's multi-button controls and the state they own."""
-
-  def __init__(self, params):
-    self._params = params
-    self.alc_timer = multiple_button_item(
-      lambda: tr("Auto Lane Change by Blinker"),
-      lambda: tr(DESCRIPTIONS["AutoLaneChangeTimer"]),
-      buttons=[lambda: tr("Nudge"), lambda: tr("Nudgeless"), "0.5s", "1s", "2s", "3s"],
-      button_width=160,
-      callback=self._set_alc_timer,
-      selected_index=max(self._params.get("AutoLaneChangeTimer", return_default=True), 0),
-      icon="chffr_wheel.png",
-    )
-
-  def insert_after(self, toggles: dict, param: str) -> None:
-    """Place the fork's controls in display order, called per row as upstream builds them."""
-    if param == _ALC_TIMER_FOLLOWS:
-      toggles["AutoLaneChangeTimer"] = self.alc_timer
-
-  def update(self, toggles: dict, CP) -> None:
-    """Nudgeless auto lane change needs the car's blind spot monitoring (BSM)."""
-    has_bsm = CP.enableBsm
-    self.alc_timer.action_item.set_enabled(has_bsm)
-    toggles["AutoLaneChangeBsmDelay"].action_item.set_enabled(has_bsm)
-
-  def _set_alc_timer(self, button_index: int) -> None:
-    # button order matches AutoLaneChangeMode values (NUDGE=0 .. THREE_SECONDS=5)
-    self._params.put("AutoLaneChangeTimer", button_index, block=True)
