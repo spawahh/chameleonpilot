@@ -127,6 +127,11 @@ class Controls:
     self.desired_curvature, curvature_limited = clip_curvature(CS.vEgo, self.desired_curvature, new_desired_curvature, lp.roll)
     lat_delay = self.sm["liveDelay"].lateralDelay + LAT_SMOOTH_SECONDS
 
+    if (extension := getattr(self.LaC, 'extension', None)) is not None:
+      extension.update_model_v2(model_v2)
+      extension.update_lateral_lag(lat_delay)
+      extension.update_calibrated_pose(self.calibrated_pose)
+
     actuators.curvature = self.desired_curvature
     steer, lateral_output, lac_log = self.LaC.update(CC.latActive, CS, self.VM, lp,
                                                      self.steer_limited_by_safety, self.desired_curvature,

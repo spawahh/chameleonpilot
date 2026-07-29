@@ -7,6 +7,7 @@ from opendbc.car.lateral import FRICTION_THRESHOLD, get_friction
 from openpilot.common.constants import ACCELERATION_DUE_TO_GRAVITY
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.controls.lib.latcontrol import LatControl
+from openpilot.selfdrive.controls.lib.chameleon.nnlc.nnlc import LatControlTorqueExt
 from openpilot.common.pid import PIDController
 
 # At higher speeds (25+mph) we can assume:
@@ -45,6 +46,7 @@ class LatControlTorque(LatControl):
     self.lat_accel_request_buffer = deque([0.] * self.lat_accel_request_buffer_len , maxlen=self.lat_accel_request_buffer_len)
     self.lookahead_frames = int(JERK_LOOKAHEAD_SECONDS / self.dt)
     self.jerk_filter = FirstOrderFilter(0.0, 1 / (2 * np.pi * LP_FILTER_CUTOFF_HZ), self.dt)
+    self.extension = LatControlTorqueExt(self, CP)
 
   def update_live_torque_params(self, latAccelFactor, latAccelOffset, friction):
     self.torque_params.latAccelFactor = latAccelFactor
@@ -92,6 +94,11 @@ class LatControlTorque(LatControl):
       freeze_integrator = steer_limited_by_safety or CS.steeringPressed or CS.vEgo < 5
       output_lataccel = self.pid.update(pid_log.error, speed=CS.vEgo, feedforward=ff, freeze_integrator=freeze_integrator)
       output_torque = self.torque_from_lateral_accel(output_lataccel, self.torque_params)
+
+      # chameleonpilot: NNLC overrides pid_log.error and output_torque when armed; stock passthrough otherwise
+      pid_log, output_torque = self.extension.update(CS, VM, params, pid_log, setpoint, measurement, roll_compensation, lateral_accel_deadzone,
+                                                     future_desired_lateral_accel, measurement, desired_curvature, measured_curvature,
+                                                     gravity_adjusted_future_lateral_accel, steer_limited_by_safety, output_torque)
 
       pid_log.active = True
       pid_log.p = float(self.pid.p)

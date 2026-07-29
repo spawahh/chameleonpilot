@@ -39,7 +39,7 @@ NIGHT_MODE_LABELS = {
 }
 
 # panel sections; every TOGGLE_DEFS key not claimed here lands in "HUD Widgets"
-DRIVING_PARAMS = ("AutoLaneChangeBsmDelay",)
+DRIVING_PARAMS = ("AutoLaneChangeBsmDelay", "NeuralNetworkLateralControl")
 HIDE_PREFIX = "Hide"
 
 SECTION_HEIGHT = 110
@@ -129,14 +129,14 @@ class ChameleonSettingsLayout(Widget):
     self._alc_timer.action_item.set_enabled(has_bsm)
 
     self._toggles: dict[str, ChameleonToggleItem] = {}
-    for param, (title, desc, icon, _needs_restart) in TOGGLE_DEFS.items():
+    for param, (title, desc, icon, needs_restart) in TOGGLE_DEFS.items():
       self._toggles[param] = ChameleonToggleItem(
         title, desc, self._params.get_bool(param),
-        callback=lambda state, p=param: self._params.put_bool(p, state, block=True),
+        callback=self._make_toggle_callback(param, needs_restart),
         icon=icon,
       )
-    for param in DRIVING_PARAMS:
-      self._toggles[param].action_item.set_enabled(has_bsm)
+    # the BSM gate applies to the auto-lane-change rows only, not everything in the section
+    self._toggles["AutoLaneChangeBsmDelay"].action_item.set_enabled(has_bsm)
 
     hud_params = [p for p in TOGGLE_DEFS if p not in DRIVING_PARAMS and not p.startswith(HIDE_PREFIX)]
     hide_params = [p for p in TOGGLE_DEFS if p.startswith(HIDE_PREFIX)]
@@ -156,6 +156,15 @@ class ChameleonSettingsLayout(Widget):
       items.extend(self._toggles[p] for p in hide_params)
 
     self._scroller = Scroller(items, line_separator=True, spacing=0)
+
+  def _make_toggle_callback(self, param: str, needs_restart: bool):
+    def callback(state: bool) -> None:
+      self._params.put_bool(param, state, block=True)
+      if needs_restart:
+        # mirror upstream's restart plumbing: the manager cycles onroad, which
+        # is what re-reads params that are only read at process construction
+        self._params.put_bool("OnroadCycleRequested", True, block=True)
+    return callback
 
   @staticmethod
   def _has_bsm() -> bool:

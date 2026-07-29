@@ -50,6 +50,11 @@ DESCRIPTIONS = {
     "Hide the round steering wheel button at the top right of the onroad screen. " +
     "That button is also the tap target for Experimental Mode, which stays available in the Toggles panel."
   ),
+  "NeuralNetworkLateralControl": tr_noop(
+    "Steer using a neural network model trained on this car platform's real driving data (sunnypilot's NNLC), instead of the standard controller. " +
+    "Only takes effect on cars that use torque steering control and that have a trained model; otherwise steering stays completely stock. " +
+    "Changing this restarts openpilot if the car is powered on."
+  ),
   "PitchLadder": tr_noop(
     "Draw an aircraft-style pitch ladder on the road: bars marking every 5 degrees of climb and dive, " +
     "with a long bar on the horizon. It needs the device to be calibrated, and hides itself until then."
@@ -74,6 +79,12 @@ TOGGLE_DEFS = {
     DESCRIPTIONS["AutoLaneChangeBsmDelay"],
     "warning.png",
     False,
+  ),
+  "NeuralNetworkLateralControl": (
+    lambda: tr("Neural Network Lateral Control (NNLC)"),
+    DESCRIPTIONS["NeuralNetworkLateralControl"],
+    "chffr_wheel.png",
+    True,
   ),
   "BlindSpot": (
     lambda: tr("Blind Spot Indicators"),
