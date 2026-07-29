@@ -12,6 +12,7 @@ result on screen is unchanged.
 import numpy as np
 import pyray as rl
 
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft.dm_annunciator import DmAnnunciator
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.flight_path_vector import FlightPathVector
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.pitch_ladder import PitchLadder
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.target_designator import TargetDesignator
@@ -25,6 +26,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 class ChameleonOverlays:
   def __init__(self):
     self._blind_spot_indicators = BlindSpotIndicators()
+    self._dm_annunciator = DmAnnunciator()
     self._driver_alerts = DriverAlerts()
     self._flight_path_vector = FlightPathVector()
     self._pitch_ladder = PitchLadder()
@@ -52,6 +54,7 @@ class ChameleonOverlays:
     self._pitch_ladder.render(rect, ui_state.sm)
     self._target_designator.render(rect, ui_state.sm)
     self._flight_path_vector.render(rect, ui_state.sm)
+    self._dm_annunciator.render(rect, ui_state.sm)
 
     self._blind_spot_indicators.render(rect)
     self._turn_signal_controller.render(rect)
