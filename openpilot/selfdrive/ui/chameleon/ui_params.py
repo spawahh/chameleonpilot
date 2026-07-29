@@ -17,9 +17,14 @@ TOGGLES = {
   "blindspot": "BlindSpot",
   "driver_alerts": "DriverAlerts",
   "flight_path_vector": "FlightPathVector",
+  "hide_driving_path": "HideDrivingPath",
+  "hide_lane_lines": "HideLaneLines",
+  "hide_speed_cluster": "HideSpeedCluster",
+  "hide_wheel_button": "HideWheelButton",
   "pitch_ladder": "PitchLadder",
   "rainbow_path": "RainbowMode",
   "rocket_fuel": "RocketFuel",
+  "target_designator": "TargetDesignator",
   "turn_signals": "ShowTurnSignals",
 }
 

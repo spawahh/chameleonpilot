@@ -34,6 +34,22 @@ DESCRIPTIONS = {
     "Draw an aircraft-style flight path vector on the road: a small winged circle marking where the car is actually travelling. " +
     "It centres itself at low speed, where the direction of travel means nothing."
   ),
+  "HideDrivingPath": tr_noop(
+    "Hide the colored driving path that openpilot draws on the road. " +
+    "The flight path vector's ghost already rides the same planned path, so the two show the same information."
+  ),
+  "HideLaneLines": tr_noop(
+    "Hide the white lane lines and the red road-edge lines. " +
+    "The road edges are a warning cue in stock openpilot; hiding them is a clean-screen trade you are choosing to make."
+  ),
+  "HideSpeedCluster": tr_noop(
+    "Hide the MAX set-speed box and the large speed number at the top of the onroad screen. " +
+    "Your car's own dashboard still shows both."
+  ),
+  "HideWheelButton": tr_noop(
+    "Hide the round steering wheel button at the top right of the onroad screen. " +
+    "That button is also the tap target for Experimental Mode, which stays available in the Toggles panel."
+  ),
   "PitchLadder": tr_noop(
     "Draw an aircraft-style pitch ladder on the road: bars marking every 5 degrees of climb and dive, " +
     "with a long bar on the horizon. It needs the device to be calibrated, and hides itself until then."
@@ -76,6 +92,30 @@ TOGGLE_DEFS = {
     lambda: tr("Pitch Ladder"),
     DESCRIPTIONS["PitchLadder"],
     "road.png",
+    False,
+  ),
+  "HideDrivingPath": (
+    lambda: tr("Hide Driving Path"),
+    DESCRIPTIONS["HideDrivingPath"],
+    "road.png",
+    False,
+  ),
+  "HideLaneLines": (
+    lambda: tr("Hide Lane Lines and Road Edges"),
+    DESCRIPTIONS["HideLaneLines"],
+    "road.png",
+    False,
+  ),
+  "HideSpeedCluster": (
+    lambda: tr("Hide MAX and Speed Display"),
+    DESCRIPTIONS["HideSpeedCluster"],
+    "metric.png",
+    False,
+  ),
+  "HideWheelButton": (
+    lambda: tr("Hide Steering Wheel Button"),
+    DESCRIPTIONS["HideWheelButton"],
+    "chffr_wheel.png",
     False,
   ),
   "RainbowMode": (
