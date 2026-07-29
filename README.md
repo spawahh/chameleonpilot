@@ -21,11 +21,19 @@ car. Treat it accordingly.
 
 ### In this branch
 
-- **HUD theme packs** — `Stock` (bit-for-bit upstream colours, the regression baseline) and `Cascade`.
+- **HUD theme packs** — `Stock` (bit-for-bit upstream colours, the regression baseline), `Cascade`
+  (glacier teal), `Rainier` (alpine dawn), `Baker` (evergreen), and `Hood` (high-desert dusk).
   Every coloured element onroad is themed: engaged border, path gradient, lane lines, lead markers,
-  driver-monitoring arc, alert backgrounds. Offroad chrome (sidebar, settings) too.
-- **Night mode** — per-theme night palettes, with manual on/off or automatic. Two thresholds plus a
-  dwell timer, so it doesn't strobe at dusk or flicker under streetlights.
+  driver-monitoring arc, alert backgrounds. Offroad chrome (sidebar, settings) too. Safety cues are
+  identical in every theme, by test.
+- **Night mode** — per-theme night palettes, with manual on/off or automatic. The automatic trigger
+  combines ambient light (two thresholds plus a dwell timer, so it doesn't strobe at dusk or flicker
+  under streetlights) with a **solar schedule**: when the sun is below civil twilight for your last
+  known position, night wins — a bright streetlight at 2 a.m. can no longer flip the day palette on.
+- **Night vision video** — optional black & white road camera while the night palette is active,
+  like an aircraft's night display.
+- **Driver monitoring annunciator** — optional aircraft-style caution readout: your attention score,
+  an escalating ATTENTION, and a LOCKOUT box, state openpilot tracks but stock never shows.
 - **Ported from sunnypilot** — blind spot indicators, turn signal display, rainbow path, real-time
   acceleration bar, green light + lead departure alerts, and auto lane change by blinker.
 - **Neural Network Lateral Control (NNLC)** — sunnypilot's neural steering feedforward
