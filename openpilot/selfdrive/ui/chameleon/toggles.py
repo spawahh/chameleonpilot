@@ -69,6 +69,15 @@ DESCRIPTIONS = {
     "with a long bar on the horizon. It needs the device to be calibrated, and hides itself until then."
   ),
   "RainbowMode": tr_noop("Draw the predicted driving path as a moving rainbow instead of the normal path colours."),
+  "RoadNameDisplay": tr_noop(
+    "Show the name of the road you are on at the top of the onroad screen. " +
+    "Needs downloaded map data (Chameleon settings, Map Data section)."
+  ),
+  "SpeedLimitDisplay": tr_noop(
+    "Show the posted speed limit from offline map data as a road sign on the onroad screen, " +
+    "with the upcoming limit when it is about to change. Display only: it never controls your speed. " +
+    "Needs downloaded map data (Chameleon settings, Map Data section)."
+  ),
   "TargetDesignator": tr_noop(
     "Draw aircraft-style corner brackets around the car ahead, with its distance and closing speed. " +
     "Replaces the stock red lead triangle, and turns red with the same urgency as the car ahead gets close. " +
@@ -159,6 +168,18 @@ TOGGLE_DEFS = {
     lambda: tr("Rainbow Path"),
     DESCRIPTIONS["RainbowMode"],
     "road.png",
+    False,
+  ),
+  "RoadNameDisplay": (
+    lambda: tr("Show Road Name"),
+    DESCRIPTIONS["RoadNameDisplay"],
+    "road.png",
+    False,
+  ),
+  "SpeedLimitDisplay": (
+    lambda: tr("Show Speed Limit Sign"),
+    DESCRIPTIONS["SpeedLimitDisplay"],
+    "speed_limit.png",
     False,
   ),
   "RocketFuel": (

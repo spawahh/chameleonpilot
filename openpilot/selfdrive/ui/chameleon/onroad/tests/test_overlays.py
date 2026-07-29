@@ -16,7 +16,9 @@ WIDGETS = (
   '_driver_alerts',
   '_flight_path_vector',
   '_pitch_ladder',
+  '_road_name',
   '_rocket_fuel',
+  '_speed_limit_sign',
   '_target_designator',
   '_turn_signal_controller',
 )
@@ -27,7 +29,8 @@ ROAD_SPACE_WIDGETS = ('_flight_path_vector', '_pitch_ladder', '_target_designato
 class TestChameleonOverlays(unittest.TestCase):
   def setUp(self):
     for name in ('BlindSpotIndicators', 'DmAnnunciator', 'DriverAlerts', 'FlightPathVector',
-                 'PitchLadder', 'RocketFuel', 'TargetDesignator', 'TurnSignalController'):
+                 'PitchLadder', 'RoadName', 'RocketFuel', 'SpeedLimitSign', 'TargetDesignator',
+                 'TurnSignalController'):
       patcher = mock.patch.object(ov, name)
       patcher.start()
       self.addCleanup(patcher.stop)

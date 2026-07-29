@@ -18,6 +18,8 @@ from openpilot.selfdrive.ui.chameleon.onroad.aircraft.pitch_ladder import PitchL
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.target_designator import TargetDesignator
 from openpilot.selfdrive.ui.chameleon.onroad.blind_spot_indicators import BlindSpotIndicators
 from openpilot.selfdrive.ui.chameleon.onroad.driver_alerts import DriverAlerts
+from openpilot.selfdrive.ui.chameleon.onroad.road_name import RoadName
+from openpilot.selfdrive.ui.chameleon.onroad.speed_limit_sign import SpeedLimitSign
 from openpilot.selfdrive.ui.chameleon.onroad.rocket_fuel import RocketFuel
 from openpilot.selfdrive.ui.chameleon.onroad.turn_signal import TurnSignalController
 from openpilot.selfdrive.ui.ui_state import ui_state
@@ -30,7 +32,9 @@ class ChameleonOverlays:
     self._driver_alerts = DriverAlerts()
     self._flight_path_vector = FlightPathVector()
     self._pitch_ladder = PitchLadder()
+    self._road_name = RoadName()
     self._rocket_fuel = RocketFuel()
+    self._speed_limit_sign = SpeedLimitSign()
     self._target_designator = TargetDesignator()
     self._turn_signal_controller = TurnSignalController()
 
@@ -55,6 +59,8 @@ class ChameleonOverlays:
     self._target_designator.render(rect, ui_state.sm)
     self._flight_path_vector.render(rect, ui_state.sm)
     self._dm_annunciator.render(rect, ui_state.sm)
+    self._speed_limit_sign.render(rect, ui_state.sm)
+    self._road_name.render(rect, ui_state.sm)
 
     self._blind_spot_indicators.render(rect)
     self._turn_signal_controller.render(rect)

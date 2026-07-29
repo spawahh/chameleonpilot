@@ -6,6 +6,7 @@ from opendbc.car.structs import car
 from openpilot.common.params import Params
 from openpilot.common.hardware import PC, TICI
 from openpilot.system.manager.process import PythonProcess, NativeProcess, DaemonProcess
+from openpilot.chameleon import mapd as chameleon_mapd
 
 WEBCAM = os.getenv("USE_WEBCAM") is not None
 
@@ -121,6 +122,11 @@ procs = [
   NativeProcess("bridge", "openpilot/cereal/messaging", ["./bridge"], notcar),
   PythonProcess("webrtcd", "openpilot.system.webrtc.webrtcd", or_(and_(livestream, not_(iscar)), notcar)),
   PythonProcess("joystick", "openpilot.tools.joystick.joystick_control", and_(joystick, iscar)),
+
+  # chameleonpilot: offline OSM map data (openpilot/chameleon/mapd)
+  NativeProcess("mapd", chameleon_mapd.MAPD_ROOT, ["bash", "-c", f"{chameleon_mapd.MAPD_BIN} > /dev/null 2>&1"],
+                lambda started, params, CP: os.path.isfile(chameleon_mapd.MAPD_BIN)),
+  PythonProcess("mapd_manager", "openpilot.chameleon.mapd.manager", always_run),
 ]
 
 managed_processes = {p.name: p for p in procs}
