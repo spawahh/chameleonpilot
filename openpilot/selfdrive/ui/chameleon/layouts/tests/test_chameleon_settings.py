@@ -123,6 +123,22 @@ class TestParamsRoundTrip(PanelTestCase):
 
     self.assertIn(("AutoLaneChangeTimer", 2), self.params.puts)
 
+  def test_restart_toggle_requests_an_onroad_cycle(self):
+    """Params read at process construction only take effect after a cycle."""
+    panel = self._panel()
+
+    panel._toggles["NeuralNetworkLateralControl"]._on_change(True)
+
+    self.assertIn(("NeuralNetworkLateralControl", True), self.params.puts)
+    self.assertIn(("OnroadCycleRequested", True), self.params.puts)
+
+  def test_live_toggle_does_not_cycle_onroad(self):
+    panel = self._panel()
+
+    panel._toggles["BlindSpot"]._on_change(True)
+
+    self.assertNotIn(("OnroadCycleRequested", True), self.params.puts)
+
   def test_show_event_mirrors_external_changes(self):
     panel = self._panel()
     self.params.values["RainbowMode"] = True
@@ -208,7 +224,7 @@ class TestToggleDefsShape(unittest.TestCase):
       self.assertTrue(callable(title), param)
       self.assertIsInstance(desc, str, param)
       self.assertIn(param, toggle_defs_mod.DESCRIPTIONS, param)
-      self.assertFalse(needs_restart, f"{param}: fork toggles are all live, no restart plumbing exists in the panel")
+      self.assertIsInstance(needs_restart, bool, param)
 
 
 if __name__ == '__main__':
