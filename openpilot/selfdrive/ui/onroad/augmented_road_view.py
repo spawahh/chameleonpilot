@@ -8,7 +8,7 @@ from openpilot.selfdrive.ui.chameleon.onroad.overlays import ChameleonOverlays
 from openpilot.selfdrive.ui.chameleon.onroad.renderers import ChameleonHudRenderer, ChameleonModelRenderer
 from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
-from openpilot.selfdrive.ui.onroad.cameraview import CameraView
+from openpilot.selfdrive.ui.chameleon.onroad.night_cameraview import NightCameraView as CameraView
 from openpilot.selfdrive.ui.themes import ROAD_COLORS
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame

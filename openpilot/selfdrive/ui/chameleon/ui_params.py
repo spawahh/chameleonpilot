@@ -22,6 +22,7 @@ TOGGLES = {
   "hide_lane_lines": "HideLaneLines",
   "hide_speed_cluster": "HideSpeedCluster",
   "hide_wheel_button": "HideWheelButton",
+  "night_video": "NightVideo",
   "pitch_ladder": "PitchLadder",
   "rainbow_path": "RainbowMode",
   "rocket_fuel": "RocketFuel",

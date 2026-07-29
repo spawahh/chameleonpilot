@@ -60,6 +60,10 @@ DESCRIPTIONS = {
     "Only takes effect on cars that use torque steering control and that have a trained model; otherwise steering stays completely stock. " +
     "Changing this restarts openpilot if the car is powered on."
   ),
+  "NightVideo": tr_noop(
+    "Show the road camera in black and white at night, like an aircraft's night vision display. " +
+    "Only active while the theme's night palette is in effect, so it follows Night Mode."
+  ),
   "PitchLadder": tr_noop(
     "Draw an aircraft-style pitch ladder on the road: bars marking every 5 degrees of climb and dive, " +
     "with a long bar on the horizon. It needs the device to be calibrated, and hides itself until then."
@@ -112,6 +116,12 @@ TOGGLE_DEFS = {
   "FlightPathVector": (
     lambda: tr("Flight Path Vector"),
     DESCRIPTIONS["FlightPathVector"],
+    "road.png",
+    False,
+  ),
+  "NightVideo": (
+    lambda: tr("Night Vision Video"),
+    DESCRIPTIONS["NightVideo"],
     "road.png",
     False,
   ),

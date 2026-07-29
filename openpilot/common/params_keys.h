@@ -145,6 +145,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"HudNightMode", {PERSISTENT, STRING, "auto"}},
     {"HudTheme", {PERSISTENT, STRING, "stock"}},
     {"NeuralNetworkLateralControl", {PERSISTENT, BOOL}},
+    {"NightVideo", {PERSISTENT, BOOL}},
     {"PitchLadder", {PERSISTENT, BOOL}},
     {"RainbowMode", {PERSISTENT, BOOL}},
     {"RocketFuel", {PERSISTENT, BOOL}},
