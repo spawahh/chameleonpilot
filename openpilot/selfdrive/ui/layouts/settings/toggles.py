@@ -53,6 +53,10 @@ DESCRIPTIONS = {
     "Draw an aircraft-style flight path vector on the road: a small winged circle marking where the car is actually travelling. " +
     "It centres itself at low speed, where the direction of travel means nothing."
   ),
+  "PitchLadder": tr_noop(
+    "Draw an aircraft-style pitch ladder on the road: bars marking every 5 degrees of climb and dive, " +
+    "with a long bar on the horizon. It needs the device to be calibrated, and hides itself until then."
+  ),
   "RainbowMode": tr_noop("Draw the predicted driving path as a moving rainbow instead of the normal path colours."),
   "RocketFuel": tr_noop(
     "Show a bar on the left of the onroad screen for the acceleration the car is actually producing. " +
@@ -139,6 +143,12 @@ class TogglesLayout(Widget):
       "FlightPathVector": (
         lambda: tr("Flight Path Vector"),
         DESCRIPTIONS["FlightPathVector"],
+        "road.png",
+        False,
+      ),
+      "PitchLadder": (
+        lambda: tr("Pitch Ladder"),
+        DESCRIPTIONS["PitchLadder"],
         "road.png",
         False,
       ),

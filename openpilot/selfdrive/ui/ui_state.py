@@ -57,6 +57,7 @@ class UIState:
         "carOutput",
         "carControl",
         "liveParameters",
+        "livePose",
         "testJoystick",
         "rawAudioData",
       ]
@@ -79,6 +80,7 @@ class UIState:
     self.blindspot: bool = self.params.get_bool("BlindSpot")
     self.driver_alerts: bool = self.params.get_bool("DriverAlerts")
     self.flight_path_vector: bool = self.params.get_bool("FlightPathVector")
+    self.pitch_ladder: bool = self.params.get_bool("PitchLadder")
     self.rainbow_path: bool = self.params.get_bool("RainbowMode")
     self.rocket_fuel: bool = self.params.get_bool("RocketFuel")
     self.turn_signals: bool = self.params.get_bool("ShowTurnSignals")
@@ -215,6 +217,7 @@ class UIState:
     self.blindspot = self.params.get_bool("BlindSpot")
     self.driver_alerts = self.params.get_bool("DriverAlerts")
     self.flight_path_vector = self.params.get_bool("FlightPathVector")
+    self.pitch_ladder = self.params.get_bool("PitchLadder")
     self.rainbow_path = self.params.get_bool("RainbowMode")
     self.rocket_fuel = self.params.get_bool("RocketFuel")
     self.turn_signals = self.params.get_bool("ShowTurnSignals")

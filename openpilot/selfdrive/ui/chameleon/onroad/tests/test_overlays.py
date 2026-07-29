@@ -14,14 +14,18 @@ WIDGETS = (
   '_blind_spot_indicators',
   '_driver_alerts',
   '_flight_path_vector',
+  '_pitch_ladder',
   '_rocket_fuel',
   '_turn_signal_controller',
 )
 
+ROAD_SPACE_WIDGETS = ('_flight_path_vector', '_pitch_ladder')
+
 
 class TestChameleonOverlays(unittest.TestCase):
   def setUp(self):
-    for name in ('BlindSpotIndicators', 'DriverAlerts', 'FlightPathVector', 'RocketFuel', 'TurnSignalController'):
+    for name in ('BlindSpotIndicators', 'DriverAlerts', 'FlightPathVector', 'PitchLadder',
+                 'RocketFuel', 'TurnSignalController'):
       patcher = mock.patch.object(ov, name)
       patcher.start()
       self.addCleanup(patcher.stop)
@@ -54,13 +58,15 @@ class TestChameleonOverlays(unittest.TestCase):
     self.overlays.render(SCREEN)
 
     self.assertEqual(calls[-1], '_driver_alerts')
-    self.assertEqual(calls[0], '_flight_path_vector')
+    # the ladder is a backdrop; the vector reads on top of it, in its centre gap
+    self.assertEqual(calls[:2], ['_pitch_ladder', '_flight_path_vector'])
 
-  def test_transform_reaches_the_road_space_widget(self):
+  def test_transform_reaches_every_road_space_widget(self):
     transform = np.eye(3)
     self.overlays.set_transform(transform)
 
-    self.overlays._flight_path_vector.set_transform.assert_called_once_with(transform)
+    for name in ROAD_SPACE_WIDGETS:
+      getattr(self.overlays, name).set_transform.assert_called_once_with(transform)
 
 
 if __name__ == '__main__':
