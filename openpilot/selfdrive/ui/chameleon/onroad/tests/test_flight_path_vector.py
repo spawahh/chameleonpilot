@@ -7,7 +7,7 @@ import pyray as rl
 from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft import flight_path_vector as fpv
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.flight_path_vector import (
-  LOOKAHEAD, MIN_SPEED, RADIUS, WING, FlightPathVector,
+  GHOST_COLOR, GHOST_SEPARATION, LOOKAHEAD, MIN_SPEED, RADIUS, WING, FlightPathVector,
 )
 
 SCREEN = rl.Rectangle(0, 0, 2160, 1080)
@@ -28,13 +28,17 @@ BORESIGHT_Y = CY + FOCAL * HEIGHT_INIT[0] / LOOKAHEAD
 
 
 class FakeModel:
-  def __init__(self, vx, vy, vz):
+  def __init__(self, vx, vy, vz, plan_y=None, plan_x=None):
     self.velocity = mock.Mock(x=[vx], y=[vy], z=[vz])
+    # straight plan out past the lookahead unless a test shapes it
+    xs = list(np.arange(0.0, 65.0, 1.0)) if plan_x is None else plan_x
+    ys = [0.0] * len(xs) if plan_y is None else [plan_y(x) for x in xs]
+    self.position = mock.Mock(x=xs, y=ys, z=[0.0] * len(xs))
 
 
 class FakeSubMaster(dict):
-  def __init__(self, vx=25.0, vy=0.0, vz=0.0, recv_frame=10):
-    super().__init__(modelV2=FakeModel(vx, vy, vz))
+  def __init__(self, vx=25.0, vy=0.0, vz=0.0, recv_frame=10, plan_y=None, plan_x=None):
+    super().__init__(modelV2=FakeModel(vx, vy, vz, plan_y, plan_x))
     self.recv_frame = {'modelV2': recv_frame}
 
 
@@ -148,6 +152,35 @@ class TestFlightPathVector(unittest.TestCase):
 
     self.assertGreater(settled, BORESIGHT_X)
     self.assertLess(after_one_frame - BORESIGHT_X, (settled - BORESIGHT_X) / 2)
+
+  def test_no_ghost_when_plan_matches_travel(self):
+    """Plan and travel agree: a single clean symbol, no ghost underneath it."""
+    self._render(FakeSubMaster(), frames=300)
+
+    self.assertEqual(self.ring.call_count, 300)
+
+  def test_ghost_rides_the_planned_path(self):
+    """A plan curving away from the travel direction gets the ghost drawn on it."""
+    self._render(FakeSubMaster(plan_y=lambda x: 0.2 * x), frames=300)
+
+    ghost, primary = self.ring.call_args_list[-2], self.ring.call_args_list[-1]
+    self.assertAlmostEqual(primary[0][0].x, BORESIGHT_X, places=3)
+    self.assertGreater(ghost[0][0].x, BORESIGHT_X + GHOST_SEPARATION)
+    # the dimmer twin, not a second solid symbol
+    self.assertEqual(ghost[0][6].a, GHOST_COLOR.a)
+
+  def test_ghost_hidden_inside_the_separation_threshold(self):
+    """Small in-lane disagreement (~1 m at the lookahead) stays a single symbol."""
+    self._render(FakeSubMaster(plan_y=lambda x: x / LOOKAHEAD), frames=300)
+
+    self.assertEqual(self.ring.call_count, 300)
+
+  def test_no_ghost_when_plan_is_short(self):
+    """A plan that ends before the lookahead cannot place the ghost."""
+    xs = list(np.arange(0.0, 20.0, 1.0))
+    self._render(FakeSubMaster(plan_y=lambda x: 0.5 * x, plan_x=xs), frames=300)
+
+    self.assertEqual(self.ring.call_count, 300)
 
   def test_symbol_has_wings_and_a_fin(self):
     # one frame: with no lateral or vertical travel the symbol is already settled
