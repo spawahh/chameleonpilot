@@ -25,7 +25,9 @@ TOGGLES = {
   "night_video": "NightVideo",
   "pitch_ladder": "PitchLadder",
   "rainbow_path": "RainbowMode",
+  "road_name_display": "RoadNameDisplay",
   "rocket_fuel": "RocketFuel",
+  "speed_limit_display": "SpeedLimitDisplay",
   "target_designator": "TargetDesignator",
   "turn_signals": "ShowTurnSignals",
 }

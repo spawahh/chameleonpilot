@@ -14,9 +14,13 @@ Usability differences from upstream rows, both deliberate:
 - Rows that need the car's blind spot monitoring grey out through a live
   `enabled` callable instead of event plumbing.
 """
+import json
+
 import pyray as rl
+import requests
 
 from openpilot.common.params import Params
+from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui import themes
 from openpilot.selfdrive.ui.chameleon.toggles import DESCRIPTIONS, TOGGLE_DEFS
 from openpilot.selfdrive.ui.ui_state import ui_state
@@ -37,6 +41,11 @@ NIGHT_MODE_LABELS = {
   "on": tr_noop("On"),
   "off": tr_noop("Off"),
 }
+
+MAP_DATA_DESCRIPTION = tr_noop(
+  "Download offline map data (OpenStreetMap) for one US state, used by the speed limit sign and road name display. " +
+  "Downloading happens on the device over WiFi and can take a while; the whole US is about 6 GB, single states much less."
+)
 
 # panel sections; every TOGGLE_DEFS key not claimed here lands in "HUD Widgets"
 DRIVING_PARAMS = ("AutoLaneChangeBsmDelay", "NeuralNetworkLateralControl")
@@ -155,6 +164,12 @@ class ChameleonSettingsLayout(Widget):
       items.append(SectionHeader(lambda: tr("Hide Stock HUD")))
       items.extend(self._toggles[p] for p in hide_params)
 
+    self._region_dialog: MultiOptionDialog | None = None
+    self._region_btn = button_item(lambda: tr("Map Data Region"), self._current_region_label,
+                                   lambda: tr(MAP_DATA_DESCRIPTION), callback=self._show_region_dialog)
+    items.append(SectionHeader(lambda: tr("Map Data")))
+    items.append(self._region_btn)
+
     self._scroller = Scroller(items, line_separator=True, spacing=0)
 
   def _make_toggle_callback(self, param: str, needs_restart: bool):
@@ -169,6 +184,42 @@ class ChameleonSettingsLayout(Widget):
   @staticmethod
   def _has_bsm() -> bool:
     return ui_state.CP is not None and bool(ui_state.CP.enableBsm)
+
+  def _current_region_label(self) -> str:
+    """The button's value: the chosen region, with download progress while one runs."""
+    state = self._params.get("OsmStateName", return_default=True) or ""
+    label = state if state else tr("None")
+
+    try:
+      progress = json.loads(self._params.get("OSMDownloadProgress") or "{}")
+      total, done = int(progress.get("total_files", 0)), int(progress.get("downloaded_files", 0))
+      if total > 0 and done < total:
+        label += f"  ({100 * done // total}%)"
+    except (ValueError, TypeError):
+      pass
+    return label
+
+  def _show_region_dialog(self) -> None:
+    # the state list lives beside the map extracts, fetched live like sunnypilot does;
+    # offline just means an empty dialog, never a crash
+    try:
+      url = "https://raw.githubusercontent.com/pfeiferj/openpilot-mapd/main/us_states_bounding_boxes.json"
+      states = sorted(requests.get(url, timeout=10).json().keys())
+    except Exception:
+      cloudlog.warning("chameleon mapd: could not fetch the region list (offline?)")
+      states = []
+    options = {name: name for name in states}
+
+    def handle_selection(result: DialogResult):
+      if result == DialogResult.CONFIRM and self._region_dialog:
+        self._params.put("OsmLocationName", "US", block=True)
+        self._params.put("OsmStateName", options[self._region_dialog.selection], block=True)
+        self._params.put_bool("OsmDbUpdatesCheck", True, block=True)
+      self._region_dialog = None
+
+    self._region_dialog = MultiOptionDialog(tr("Map Data Region (US states)"), options,
+                                            self._params.get("OsmStateName", return_default=True) or "", callback=handle_selection)
+    gui_app.push_widget(self._region_dialog)
 
   def _current_theme_label(self) -> str:
     return tr(themes.active().label)
