@@ -28,6 +28,11 @@ car. Treat it accordingly.
   dwell timer, so it doesn't strobe at dusk or flicker under streetlights.
 - **Ported from sunnypilot** — blind spot indicators, turn signal display, rainbow path, real-time
   acceleration bar, green light + lead departure alerts, and auto lane change by blinker.
+- **Neural Network Lateral Control (NNLC)** — sunnypilot's neural steering feedforward
+  (twilsonco's models), rebuilt against upstream's current torque controller. Default off. Only
+  arms on cars with a trained model; on platforms that ship a PID tune (like the 2022 Crosstrek)
+  it moves the car onto upstream's own torque tune for that platform when enabled. With the toggle
+  off, steering is bit-for-bit stock — pinned by test.
 - **Safety cues are pinned to upstream by test.** Road edge red, lead chevron, prompt/critical alert
   backgrounds and sidebar status colours are identical in every theme, day and night. A theme cannot
   recolour a warning.
