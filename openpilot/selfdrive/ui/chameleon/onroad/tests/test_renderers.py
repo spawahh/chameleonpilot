@@ -73,11 +73,11 @@ class TestModelRendererGates(unittest.TestCase):
   def test_path_gate(self):
     parent = self._parent("_draw_path")
 
-    self.renderer._draw_path(sm={})
-    parent.assert_called_once_with(sm={})
+    self.renderer._draw_path({})
+    parent.assert_called_once()
 
     self.ui_state.hide_driving_path = True
-    self.renderer._draw_path(sm={})
+    self.renderer._draw_path({})
     parent.assert_called_once()
 
   def test_lead_indicator_yields_to_the_target_designator(self):

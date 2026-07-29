@@ -55,6 +55,11 @@ DESCRIPTIONS = {
     "with a long bar on the horizon. It needs the device to be calibrated, and hides itself until then."
   ),
   "RainbowMode": tr_noop("Draw the predicted driving path as a moving rainbow instead of the normal path colours."),
+  "TargetDesignator": tr_noop(
+    "Draw aircraft-style corner brackets around the car ahead, with its distance and closing speed. " +
+    "Replaces the stock red lead triangle, and turns red with the same urgency as the car ahead gets close. " +
+    "Works even when your car's own cruise control does the speed keeping."
+  ),
   "RocketFuel": tr_noop(
     "Show a bar on the left of the onroad screen for the acceleration the car is actually producing. " +
     "Green is speeding up, red is slowing down. This is what the car is doing, not what openpilot asked for."
@@ -128,6 +133,12 @@ TOGGLE_DEFS = {
     lambda: tr("Real-time Acceleration Bar"),
     DESCRIPTIONS["RocketFuel"],
     "speed_limit.png",
+    False,
+  ),
+  "TargetDesignator": (
+    lambda: tr("Lead Target Designator"),
+    DESCRIPTIONS["TargetDesignator"],
+    "road.png",
     False,
   ),
   "ShowTurnSignals": (

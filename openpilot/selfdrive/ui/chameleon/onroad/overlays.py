@@ -14,6 +14,7 @@ import pyray as rl
 
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.flight_path_vector import FlightPathVector
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.pitch_ladder import PitchLadder
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft.target_designator import TargetDesignator
 from openpilot.selfdrive.ui.chameleon.onroad.blind_spot_indicators import BlindSpotIndicators
 from openpilot.selfdrive.ui.chameleon.onroad.driver_alerts import DriverAlerts
 from openpilot.selfdrive.ui.chameleon.onroad.rocket_fuel import RocketFuel
@@ -28,12 +29,14 @@ class ChameleonOverlays:
     self._flight_path_vector = FlightPathVector()
     self._pitch_ladder = PitchLadder()
     self._rocket_fuel = RocketFuel()
+    self._target_designator = TargetDesignator()
     self._turn_signal_controller = TurnSignalController()
 
   def set_transform(self, transform: np.ndarray) -> None:
     """Car space to screen, shared with the model renderer."""
     self._flight_path_vector.set_transform(transform)
     self._pitch_ladder.set_transform(transform)
+    self._target_designator.set_transform(transform)
 
   def update(self) -> None:
     self._blind_spot_indicators.update()
@@ -44,9 +47,10 @@ class ChameleonOverlays:
     self.update()
 
     # road-space symbology first, so the screen-space widgets sit on top of it.
-    # Ladder before the vector: the vector is the thing you read, and it sits in
-    # the ladder's centre gap.
+    # Ladder at the back; the designator brackets a car on the road; the vector
+    # is the thing you read and stays on top, sitting in the ladder's centre gap.
     self._pitch_ladder.render(rect, ui_state.sm)
+    self._target_designator.render(rect, ui_state.sm)
     self._flight_path_vector.render(rect, ui_state.sm)
 
     self._blind_spot_indicators.render(rect)
