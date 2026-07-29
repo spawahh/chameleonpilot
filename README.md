@@ -1,5 +1,79 @@
 <div align="center" style="text-align: center;">
 
+<h1>chameleonpilot</h1>
+
+<p>
+  <b>An openpilot fork that changes its skin.</b>
+  <br>
+  Selectable HUD theme packs with automatic night switching, plus selected sunnypilot features.
+</p>
+
+</div>
+
+## What this is
+
+A personal fork of [commaai/openpilot](https://github.com/commaai/openpilot). The headline feature is
+**selectable HUD theme packs** — and automatic day/night switching, which is the thing that makes them
+worth having.
+
+**Not affiliated with comma.ai or sunnypilot.** This is one person's fork, developed against a single
+car. Treat it accordingly.
+
+### In this branch
+
+- **HUD theme packs** — `Stock` (bit-for-bit upstream colours, the regression baseline) and `Cascade`.
+  Every coloured element onroad is themed: engaged border, path gradient, lane lines, lead markers,
+  driver-monitoring arc, alert backgrounds. Offroad chrome (sidebar, settings) too.
+- **Night mode** — per-theme night palettes, with manual on/off or automatic. Two thresholds plus a
+  dwell timer, so it doesn't strobe at dusk or flicker under streetlights.
+- **Ported from sunnypilot** — blind spot indicators, turn signal display, rainbow path, real-time
+  acceleration bar, green light + lead departure alerts, and auto lane change by blinker.
+- **Safety cues are pinned to upstream by test.** Road edge red, lead chevron, prompt/critical alert
+  backgrounds and sidebar status colours are identical in every theme, day and night. A theme cannot
+  recolour a warning.
+
+### On other branches
+
+- `themes/aircraft` — an aircraft-style HUD layout: flight path vector with a ghost on the planned
+  path, and a pitch ladder. Work in progress.
+- `master` — tracks upstream `commaai/openpilot` unmodified.
+
+### Auto lane change — read this before enabling it
+
+Upstream openpilot requires a physical steering nudge to commit a lane change. The ported feature can
+remove that confirmation step, so it is **gated on the car reporting blind spot monitoring**: without
+BSM, a nudge is always required and the setting has no effect. With BSM, nudgeless is available but
+never the default. Every toggle in this fork defaults **off**.
+
+## Licensing and attribution
+
+This project uses software from Haibin Wen and SUNNYPILOT LLC and is licensed under a custom license
+requiring permission for use.
+
+- **openpilot** code is comma.ai's MIT licence — see [`LICENSE`](LICENSE).
+- **Ported sunnypilot** code is sunnypilot's Custom MIT licence — see [`LICENSE.md`](LICENSE.md).
+  It requires explicit written permission for commercial, for-profit or closed-source use. Every ported
+  file keeps its original copyright header. chameleonpilot is non-commercial and open source.
+
+Original chameleonpilot code (the theme system, night mode and the aircraft HUD elements) is MIT, same
+as openpilot.
+
+## Supported hardware and cars
+
+Developed and tested on a **comma 3X** in a **2022 Subaru Crosstrek** (`SUBARU_IMPREZA_2020`), running
+AGNOS 18.7. Other cars and devices inherit whatever upstream openpilot supports, but nothing else has
+been verified here. The themes affect the `tizi`/`tici` UI only — comma's `mici` device tree keeps its
+own renderers and is untouched.
+
+---
+
+# Upstream openpilot README
+
+Everything below is comma.ai's, unmodified. The safety, licensing and user-data terms it describes
+apply to this fork.
+
+<div align="center" style="text-align: center;">
+
 <h1>openpilot</h1>
 
 <p>
