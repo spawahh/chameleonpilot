@@ -26,6 +26,11 @@ DESCRIPTIONS = {
     "Show an icon at the left or right edge of the onroad screen when your car reports a vehicle in that blind spot. " +
     "Requires a car that sends blind spot monitoring over CAN."
   ),
+  "DmAnnunciator": tr_noop(
+    "Show an aircraft-style caution readout at the top of the onroad screen for driver monitoring: " +
+    "your attention score while all is well, an amber then red ATTENTION as openpilot escalates, " +
+    "and a red LOCKOUT box when driver monitoring has locked you out."
+  ),
   "DriverAlerts": tr_noop(
     "Show a pop-up while stopped and disengaged when the traffic light ahead turns green (no lead car and the driving model sees an open road) " +
     "or when the car in front starts to drive away. Visual only, no sound."
@@ -54,6 +59,10 @@ DESCRIPTIONS = {
     "Steer using a neural network model trained on this car platform's real driving data (sunnypilot's NNLC), instead of the standard controller. " +
     "Only takes effect on cars that use torque steering control and that have a trained model; otherwise steering stays completely stock. " +
     "Changing this restarts openpilot if the car is powered on."
+  ),
+  "NightVideo": tr_noop(
+    "Show the road camera in black and white at night, like an aircraft's night vision display. " +
+    "Only active while the theme's night palette is in effect, so it follows Night Mode."
   ),
   "PitchLadder": tr_noop(
     "Draw an aircraft-style pitch ladder on the road: bars marking every 5 degrees of climb and dive, " +
@@ -92,6 +101,12 @@ TOGGLE_DEFS = {
     "warning.png",
     False,
   ),
+  "DmAnnunciator": (
+    lambda: tr("Driver Monitoring Annunciator"),
+    DESCRIPTIONS["DmAnnunciator"],
+    "monitoring.png",
+    False,
+  ),
   "DriverAlerts": (
     lambda: tr("Green Light and Lead Departure Alerts"),
     DESCRIPTIONS["DriverAlerts"],
@@ -101,6 +116,12 @@ TOGGLE_DEFS = {
   "FlightPathVector": (
     lambda: tr("Flight Path Vector"),
     DESCRIPTIONS["FlightPathVector"],
+    "road.png",
+    False,
+  ),
+  "NightVideo": (
+    lambda: tr("Night Vision Video"),
+    DESCRIPTIONS["NightVideo"],
     "road.png",
     False,
   ),

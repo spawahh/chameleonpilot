@@ -11,7 +11,11 @@ import pyray as rl
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.themes.base import Theme
+from openpilot.selfdrive.ui.themes.baker import BAKER
 from openpilot.selfdrive.ui.themes.cascade import CASCADE
+from openpilot.selfdrive.ui.themes.hood import HOOD
+from openpilot.selfdrive.ui.themes.rainier import RAINIER
+from openpilot.selfdrive.ui.themes.solar import SolarSchedule
 from openpilot.selfdrive.ui.themes.stock import STOCK
 
 THEME_PARAM = "HudTheme"
@@ -25,7 +29,7 @@ NIGHT_ENTER_BELOW = 30.0
 NIGHT_EXIT_ABOVE = 45.0
 NIGHT_DWELL_S = 15.0
 
-THEMES: dict[str, Theme] = {t.name: t for t in (STOCK, CASCADE)}
+THEMES: dict[str, Theme] = {t.name: t for t in (STOCK, CASCADE, RAINIER, BAKER, HOOD)}
 
 _active: Theme = DEFAULT_THEME
 
@@ -48,6 +52,7 @@ def set_active(name: str) -> Theme:
 def load_from_params(params: Params | None = None) -> Theme:
   p = params if params is not None else Params()
   set_night_mode(p.get(NIGHT_PARAM, return_default=True))
+  solar_schedule.load(p)  # cached position, so the schedule works before the first GPS fix
   return set_active(p.get(THEME_PARAM, return_default=True))
 
 
@@ -72,9 +77,20 @@ class _NightResolver:
     elif mode == "off":
       self.is_night = False
 
-  def tick(self, light_sensor: float, now: float | None = None) -> bool:
+  def tick(self, light_sensor: float, solar_dark: bool | None = None, now: float | None = None) -> bool:
     if self.mode != "auto":
       return self.is_night
+
+    # Asymmetric combine: the solar schedule sets the baseline and ambient may
+    # only DARKEN, never brighten. Solar-night means night no matter how bright
+    # the camera reads (the 2am-streetlight bug); solar-day and solar-unknown
+    # leave the ambient hysteresis in charge, so a tunnel can still go dark.
+    # No dwell on the solar path: elevation changes over minutes, not frames.
+    if solar_dark is True:
+      self._pending = None
+      self.is_night = True
+      return True
+
     if light_sensor < 0:  # camera not alive: hold the current state
       self._pending = None
       return self.is_night
@@ -99,6 +115,7 @@ class _NightResolver:
 
 
 night = _NightResolver()
+solar_schedule = SolarSchedule()
 
 
 def set_night_mode(mode: str, params: Params | None = None) -> None:
@@ -108,8 +125,17 @@ def set_night_mode(mode: str, params: Params | None = None) -> None:
 
 
 def night_tick(light_sensor: float) -> None:
-  """Call once per frame from the UI loop (auto mode's ambient trigger)."""
-  night.tick(light_sensor)
+  """Call once per frame from the UI loop (ambient trigger + solar schedule)."""
+  # lazy import: ui_state does not import this module back, but keeping the
+  # dependency out of module import keeps the theme package usable standalone
+  from openpilot.selfdrive.ui.ui_state import ui_state
+
+  sm = ui_state.sm
+  if sm.updated['gpsLocation'] and sm['gpsLocation'].hasFix:
+    gps = sm['gpsLocation']
+    solar_schedule.update_position(gps.latitude, gps.longitude, params=ui_state.params)
+
+  night.tick(light_sensor, solar_dark=solar_schedule.is_dark())
 
 
 class _ColorProxy:

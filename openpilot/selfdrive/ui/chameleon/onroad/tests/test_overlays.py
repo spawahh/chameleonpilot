@@ -12,6 +12,7 @@ SCREEN = rl.Rectangle(0, 0, 2160, 1080)
 
 WIDGETS = (
   '_blind_spot_indicators',
+  '_dm_annunciator',
   '_driver_alerts',
   '_flight_path_vector',
   '_pitch_ladder',
@@ -25,8 +26,8 @@ ROAD_SPACE_WIDGETS = ('_flight_path_vector', '_pitch_ladder', '_target_designato
 
 class TestChameleonOverlays(unittest.TestCase):
   def setUp(self):
-    for name in ('BlindSpotIndicators', 'DriverAlerts', 'FlightPathVector', 'PitchLadder',
-                 'RocketFuel', 'TargetDesignator', 'TurnSignalController'):
+    for name in ('BlindSpotIndicators', 'DmAnnunciator', 'DriverAlerts', 'FlightPathVector',
+                 'PitchLadder', 'RocketFuel', 'TargetDesignator', 'TurnSignalController'):
       patcher = mock.patch.object(ov, name)
       patcher.start()
       self.addCleanup(patcher.stop)
