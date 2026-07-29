@@ -11,7 +11,10 @@ import pyray as rl
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.themes.base import Theme
+from openpilot.selfdrive.ui.themes.baker import BAKER
 from openpilot.selfdrive.ui.themes.cascade import CASCADE
+from openpilot.selfdrive.ui.themes.hood import HOOD
+from openpilot.selfdrive.ui.themes.rainier import RAINIER
 from openpilot.selfdrive.ui.themes.stock import STOCK
 
 THEME_PARAM = "HudTheme"
@@ -25,7 +28,7 @@ NIGHT_ENTER_BELOW = 30.0
 NIGHT_EXIT_ABOVE = 45.0
 NIGHT_DWELL_S = 15.0
 
-THEMES: dict[str, Theme] = {t.name: t for t in (STOCK, CASCADE)}
+THEMES: dict[str, Theme] = {t.name: t for t in (STOCK, CASCADE, RAINIER, BAKER, HOOD)}
 
 _active: Theme = DEFAULT_THEME
 
