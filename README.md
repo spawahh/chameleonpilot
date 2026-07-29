@@ -36,6 +36,10 @@ car. Treat it accordingly.
   an escalating ATTENTION, and a LOCKOUT box, state openpilot tracks but stock never shows.
 - **Ported from sunnypilot** — blind spot indicators, turn signal display, rainbow path, real-time
   acceleration bar, green light + lead departure alerts, and auto lane change by blinker.
+- **Offline map data** — pfeiferj's OSM mapd, downloaded at first run and verified against the pinned
+  GitHub release digest before it can ever execute. Feeds a **speed limit sign** (US MUTCD or Vienna
+  style, with the upcoming limit) and a **road name display**. Display only — nothing controls speed.
+  Pick a US state to download in the Chameleon settings panel.
 - **Neural Network Lateral Control (NNLC)** — sunnypilot's neural steering feedforward
   (twilsonco's models), rebuilt against upstream's current torque controller. Default off. Only
   arms on cars with a trained model; on platforms that ship a PID tune (like the 2022 Crosstrek)
