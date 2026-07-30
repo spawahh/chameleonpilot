@@ -8,6 +8,24 @@
   Selectable HUD theme packs with automatic night switching, plus selected sunnypilot features.
 </p>
 
+<p>
+  <a href="INSTALL.md"><b>Install</b></a>
+  <span> · </span>
+  <a href="#roadmap">Roadmap</a>
+  <span> · </span>
+  <a href="#how-this-differs-from-upstream">Deviations</a>
+  <span> · </span>
+  <a href="#support-and-expectations">Support</a>
+</p>
+
+<img src="docs/images/aircraft-hud.jpg" alt="chameleonpilot's aircraft HUD running on a comma 3X: a seven-slot annunciator row across the top, speed and altitude tapes down the sides, a heading tape along the bottom, and a flight path vector with its ghost over the road" width="100%">
+
+<p><i>
+  The aircraft HUD on a comma 3X. Annunciator row across the top, speed (left) and GPS altitude
+  (right) tapes, GPS heading along the bottom, pitch ladder and flight path vector over the road.
+  The stock speed cluster, lane lines and driving path are hidden here — all of that is optional.
+</i></p>
+
 </div>
 
 ## What this is
@@ -32,13 +50,21 @@ car. Treat it accordingly.
   known position, night wins — a bright streetlight at 2 a.m. can no longer flip the day palette on.
 - **Night vision video** — optional black & white road camera while the night palette is active,
   like an aircraft's night display.
-- **Driver monitoring annunciator** — optional aircraft-style caution readout: your attention score,
-  an escalating ATTENTION, and a LOCKOUT box, state openpilot tracks but stock never shows.
+- **Annunciator row** — seven equal-width legends across the top: green light, lead departing, the
+  driver-monitoring readout, turn signal, device temperature, GPS fix quality and engagement state.
+  Unlit legends stay visible so you learn where to look, the way a real annunciator panel works.
+  The driver-monitoring readout shows your attention score and turns amber while you look away or
+  when the camera loses your face — state openpilot tracks but stock never displays.
 - **Ported from sunnypilot** — blind spot indicators, turn signal display, rainbow path, real-time
   acceleration bar, green light + lead departure alerts, and auto lane change by blinker.
 - **Aircraft tapes** — moving speed, GPS-altitude and GPS-heading scales with boxed readouts, like a
-  head-up display's. The heading hides below walking pace (GPS course, not a compass); altitude
-  appears after the first fix. Pairs with hiding the stock speed cluster.
+  head-up display's. The speed tape carries two bugs: a filled caret at your cruise set speed and a
+  hollow one at the posted speed limit, each pinning to the tape end when it is off-scale. The
+  heading hides below walking pace (GPS course, not a compass); altitude appears after the first fix.
+  Pairs with hiding the stock speed cluster.
+- **Target designator** — aircraft-style corner brackets on the lead car with range and closing rate,
+  in place of the stock chevron. Unlike the chevron it draws on stock-ACC cars too, since it is
+  information rather than a control cue.
 - **Offline map data** — pfeiferj's OSM mapd, downloaded at first run and verified against the pinned
   GitHub release digest before it can ever execute. Feeds a **speed limit sign** (US MUTCD or Vienna
   style, with the upcoming limit) and a **road name display**. Display only — nothing controls speed.
@@ -54,14 +80,66 @@ car. Treat it accordingly.
 
 - **Aircraft HUD elements** — a flight path vector (a winged circle marking where the car is actually
   travelling, with a dimmer ghost riding openpilot's planned path when the two disagree) and a pitch
-  ladder. Both default off; the ladder stays hidden until the device is calibrated.
-  **Still being tuned** — the roll direction and the on-road placement have not been confirmed by eye
-  yet, so treat these two as experimental even by this fork's standards.
+  ladder. Both default off; the ladder stays hidden until the device is calibrated. The pitch
+  ladder's **roll direction is still unconfirmed by eye** — treat that one element as experimental
+  even by this fork's standards.
 
 ### On other branches
 
-- `master` — tracks upstream `commaai/openpilot` unmodified.
-- `themes/aircraft` — where the aircraft HUD work continues; currently the same as `main`.
+- `master` — tracks upstream `commaai/openpilot` unmodified. Never developed on, so a rebase always
+  has a clean base.
+- `themes/aircraft` — where the aircraft HUD is developed; merged into `main`.
+- `integration-full` — the branch the development device actually boots. Same content as `main`
+  without the licence and README commits.
+- `port/nnlc` — the NNLC port in isolation, kept for reference now that it is merged.
+
+## Roadmap
+
+Everything originally planned is built and driven except the items below. Priorities are mine and
+this is a hobby project, so treat the order as intent rather than a schedule.
+
+| | Item | State |
+|---|---|---|
+| — | **Speed limit control** | **Not started, biggest remaining feature.** Using map speed limits to actually set cruise: a resolver, offsets and policies. The offline map data it depends on already works, so this is the natural next build. Today the fork only *displays* limits. |
+| — | **"Create your own theme" docs** | Intended. The palette schema is a frozen dataclass and themes register in one tuple, so a theme is one file — it just needs writing up. |
+| — | Pitch ladder roll direction | Needs one deliberate look on a banked road. |
+| — | Night drive verification | The solar night trigger and the black & white video have not been watched through a full dusk. |
+| — | Dynamic Experimental Control | Undecided whether it belongs here at all. |
+| — | Subaru stop-and-go / start-stop defeat | Blocked on CAN work unrelated to this fork's UI focus. |
+
+Deliberately **not** planned: MADS, Smart Cruise Control, custom driving-model selection, and
+always-on driver monitoring. Those are the reasons sunnypilot exists; this fork is not trying to
+replace it.
+
+## How this differs from upstream
+
+The design constraint that shapes every decision here: **keep the upstream diff small enough to rebase
+on comma's `master` indefinitely.** Almost all of this fork lives in its own directories
+(`openpilot/selfdrive/ui/chameleon/`, `openpilot/selfdrive/ui/themes/`, `openpilot/chameleon/`) and
+touches upstream files in roughly a hundred lines total, mostly one-line hooks and import aliases.
+
+Concretely, upstream behaviour changes only in these places, and only when you turn something on:
+
+- **Steering** — NNLC replaces the lateral feedforward when enabled, and moves platforms that ship a
+  PID tune onto upstream's own torque tune. Off means bit-for-bit stock, pinned by test.
+- **Lane changes** — auto lane change can remove the physical nudge confirmation, gated on the car
+  reporting blind spot monitoring. See the warning below.
+- **Hidden stock elements** — lane lines, road edges, the driving path, the speed cluster, the wheel
+  button and the driver-monitoring face can each be hidden. Hiding road edges hides a warning cue.
+- **A new native process** — pfeiferj's `mapd` runs as a daemon when you download map data. It is
+  verified against a pinned SHA-256 before it can ever execute, and it is display-only: it cannot
+  influence control.
+- **One cereal message** — `liveMapData`, carried in a slot upstream reserves for forks.
+
+Nothing in the safety model changes. The code enforcing it lives in panda, in C, and is untouched.
+
+## Support and expectations
+
+**Issues are disabled and nothing here is monitored.** This is a personal fork published because
+publishing costs nothing, not a distribution with a support commitment. If you install it you are
+choosing to run software tested on one car by one person.
+
+If that changes I will say so here.
 
 ### Auto lane change — read this before enabling it
 
@@ -87,8 +165,13 @@ as openpilot.
 
 Developed and tested on a **comma 3X** in a **2022 Subaru Crosstrek** (`SUBARU_IMPREZA_2020`), running
 AGNOS 18.7. Other cars and devices inherit whatever upstream openpilot supports, but nothing else has
-been verified here. The themes affect the `tizi`/`tici` UI only — comma's `mici` device tree keeps its
-own renderers and is untouched.
+been verified here.
+
+⚠️ **On a comma four you would get almost none of this.** The themes and the aircraft HUD are written
+against the `tizi`/`tici` renderers; comma's `mici` device tree has its own and is deliberately
+untouched, so a comma four install would look near-stock.
+
+Installation, first-boot expectations and how to go back to stock: **[INSTALL.md](INSTALL.md)**.
 
 ---
 
