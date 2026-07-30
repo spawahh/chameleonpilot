@@ -32,6 +32,7 @@ class FakeUIState:
   def __init__(self, sign=True, road=True, metric=False):
     self.speed_limit_display = sign
     self.road_name_display = road
+    self.aircraft_tapes = False
     self.is_metric = metric
     self.started_frame = 1
 

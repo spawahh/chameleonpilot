@@ -31,7 +31,7 @@ AMBER = rl.Color(218, 202, 37, 255)  # the pinned WARNING value
 RED = rl.Color(201, 34, 49, 255)  # the pinned DANGER value
 
 TEXT_SIZE = 44
-TOP_MARGIN = 110.0  # px below the rect top: clear of the header scrim, above the ladder
+TOP_MARGIN = 160.0  # px below the rect top: under the heading tape's readout, above the ladder
 PAD_X, PAD_Y = 24.0, 10.0
 BOX_THICKNESS = 4.0
 

@@ -12,6 +12,12 @@ needs_restart). Dict order is display order within the panel's sections.
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 
 DESCRIPTIONS = {
+  "AircraftTapes": tr_noop(
+    "Draw aircraft-style tapes: speed on the left, GPS altitude on the right, and GPS heading along the top. " +
+    "Altitude and heading appear after the first GPS fix; the heading hides below walking pace, where GPS course means nothing. " +
+    "Altitude is height above the GPS ellipsoid, which can read a little different from map elevation. " +
+    "Pairs well with Hide MAX and Speed Display."
+  ),
   "AutoLaneChangeTimer": tr_noop(
     "Start the lane change this long after the turn signal, without waiting for a nudge on the steering wheel. Default is Nudge. " +
     "Requires a car that sends blind spot monitoring (BSM) over CAN. On cars without BSM, every setting behaves like Nudge: " +
@@ -92,6 +98,12 @@ DESCRIPTIONS = {
 
 # param -> (title, description, icon, needs_restart), upstream's row shape
 TOGGLE_DEFS = {
+  "AircraftTapes": (
+    lambda: tr("Aircraft Tapes (Speed, Altitude, Heading)"),
+    DESCRIPTIONS["AircraftTapes"],
+    "road.png",
+    False,
+  ),
   "AutoLaneChangeBsmDelay": (
     lambda: tr("Auto Lane Change: Delay with Blind Spot"),
     DESCRIPTIONS["AutoLaneChangeBsmDelay"],
