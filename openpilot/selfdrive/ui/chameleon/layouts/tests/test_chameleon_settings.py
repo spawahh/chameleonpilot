@@ -104,7 +104,8 @@ class TestPanelStructure(PanelTestCase):
     """The whole point of the panel: upstream's TogglesLayout owes the fork nothing."""
     import openpilot.selfdrive.ui.layouts.settings.toggles as upstream_toggles
 
-    source = open(upstream_toggles.__file__, encoding="utf-8").read()
+    with open(upstream_toggles.__file__, encoding="utf-8") as f:
+      source = f.read()
     self.assertNotIn("chameleon", source.lower())
 
 

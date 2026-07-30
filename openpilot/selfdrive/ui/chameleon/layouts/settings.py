@@ -14,8 +14,6 @@ Usability differences from upstream rows, both deliberate:
 - Rows that need the car's blind spot monitoring grey out through a live
   `enabled` callable instead of event plumbing.
 """
-import json
-
 import pyray as rl
 import requests
 
@@ -191,11 +189,12 @@ class ChameleonSettingsLayout(Widget):
     label = state if state else tr("None")
 
     try:
-      progress = json.loads(self._params.get("OSMDownloadProgress") or "{}")
+      # OSMDownloadProgress is JSON-typed: Params.get returns the parsed dict directly
+      progress = self._params.get("OSMDownloadProgress") or {}
       total, done = int(progress.get("total_files", 0)), int(progress.get("downloaded_files", 0))
       if total > 0 and done < total:
         label += f"  ({100 * done // total}%)"
-    except (ValueError, TypeError):
+    except (AttributeError, ValueError, TypeError):
       pass
     return label
 

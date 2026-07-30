@@ -1,5 +1,5 @@
 """
-Aircraft tapes: speed (left), GPS altitude (right), GPS heading (top).
+Aircraft tapes: speed (left), GPS altitude (right), GPS heading (bottom).
 
 Real HUD tapes are moving scales read against a fixed index: the ticks slide,
 the current value sits in a boxed readout at the index line. Same here.
@@ -32,7 +32,7 @@ TAPE_HEIGHT = 560.0  # vertical tapes
 TAPE_WIDTH = 130.0
 EDGE_MARGIN = 50.0  # clear of the accel bar (28 px) and blind spot icons
 HEADING_WIDTH = 760.0
-HEADING_HEIGHT = 72.0
+HEADING_BOTTOM_MARGIN = 100.0  # baseline this far above the rect bottom; the readout box hangs below it
 TICK = 18.0
 THICKNESS = 3.0
 LABEL_SIZE = 34
@@ -128,7 +128,7 @@ class AircraftTapes:
     speed = max(0.0, v_ego * conversion)
 
     tape = VerticalTape(self._font, ticks_on_right=True, minor_step=5.0, major_step=10.0,
-                        px_per_unit=TAPE_HEIGHT / 100.0)  # +/-50 units in view
+                        px_per_unit=TAPE_HEIGHT / 60.0)  # +/-30 units in view; wider spacing reads better
     tape.draw(rect.x + EDGE_MARGIN, rect.y + rect.height / 2, speed)
 
   # --- altitude (right) ---
@@ -157,16 +157,17 @@ class AircraftTapes:
                         px_per_unit=TAPE_HEIGHT / span)
     tape.draw(rect.x + rect.width - EDGE_MARGIN - TAPE_WIDTH, rect.y + rect.height / 2, max(0.0, altitude))
 
-  # --- heading (top) ---
+  # --- heading (bottom) ---
 
   def _draw_heading(self, rect: rl.Rectangle, sm) -> None:
     if sm['carState'].vEgo < MIN_HEADING_SPEED:
       return
 
     cx = rect.x + rect.width / 2
-    top = rect.y + 6.0
     px_per_deg = HEADING_WIDTH / 120.0  # +/-60 degrees in view
-    baseline = top + HEADING_HEIGHT
+    # bottom-centre: ticks and labels rise above the baseline, the readout box
+    # hangs below it, ending clear of the screen edge (DM face is bottom-left)
+    baseline = rect.y + rect.height - HEADING_BOTTOM_MARGIN
 
     rl.draw_line_ex(rl.Vector2(cx - HEADING_WIDTH / 2, baseline), rl.Vector2(cx + HEADING_WIDTH / 2, baseline), THICKNESS, DIM)
 

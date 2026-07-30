@@ -4,10 +4,9 @@ from unittest import mock
 import pyray as rl
 
 from openpilot.cereal import log
-from openpilot.selfdrive.ui import UI_BORDER_SIZE
 from openpilot.selfdrive.ui.chameleon.onroad import driver_alerts as da
 from openpilot.selfdrive.ui.chameleon.onroad.driver_alerts import (
-  ALERT_RADIUS, ALERT_RIGHT_MARGIN, DriverAlerts, DriverAlertsHelper, E2EStates,
+  CENTER_GAP, TOP_MARGIN, DriverAlerts, DriverAlertsHelper, E2EStates,
 )
 
 DT = 0.05  # deterministic tick for tests, matches DT_MDL
@@ -238,8 +237,8 @@ class TestDriverAlertsHelper(DriverAlertsTestCase):
 class TestDriverAlertsRenderer(DriverAlertsTestCase):
   def setUp(self):
     super().setUp()
-    self.draw_circle = self._patch(mock.patch.object(da.rl, 'draw_circle_v'))
-    self.draw_ring = self._patch(mock.patch.object(da.rl, 'draw_ring'))
+    self.draw_box = self._patch(mock.patch.object(da.rl, 'draw_rectangle_rec'))
+    self.draw_outline = self._patch(mock.patch.object(da.rl, 'draw_rectangle_lines_ex'))
     self.draw_text = self._patch(mock.patch.object(da.rl, 'draw_text_ex'))
     self._patch(mock.patch.object(da, 'measure_text_cached', return_value=rl.Vector2(100, 48)))
 
@@ -255,24 +254,25 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
   def test_alert_latches_display_timer(self):
     alerts = self._fired_alerts()
     self.assertEqual(alerts._display_timer, int(3.0 * da.gui_app.target_fps) - 1)
-    self.assertEqual(alerts._alert_text, "GREEN\nLIGHT")
+    self.assertEqual(alerts._alert_text, "GREEN LIGHT")
 
-  def test_render_draws_circle_ring_and_text(self):
+  def test_render_draws_boxed_legend(self):
     alerts = self._fired_alerts()
     alerts.render(SCREEN)
 
-    self.draw_circle.assert_called_once()
-    self.draw_ring.assert_called_once()
-    self.assertEqual(self.draw_text.call_count, 2)  # two lines of text
+    self.draw_box.assert_called_once()
+    self.draw_outline.assert_called_once()
+    self.draw_text.assert_called_once()
 
-  def test_circle_position(self):
+  def test_legend_sits_on_the_dm_annunciator_line(self):
+    """In line with the driver-monitoring readout, right-aligned against the centre gap."""
     alerts = self._fired_alerts()
     alerts.render(SCREEN)
 
-    center = self.draw_circle.call_args.args[0]
-    self.assertEqual(center.x, SCREEN.x + SCREEN.width - ALERT_RADIUS - ALERT_RIGHT_MARGIN - UI_BORDER_SIZE * 3)
-    self.assertEqual(center.y, SCREEN.y + SCREEN.height / 2 + 20)
-    self.assertEqual(self.draw_circle.call_args.args[1], ALERT_RADIUS)
+    pos = self.draw_text.call_args.args[2]
+    self.assertEqual(pos.y, SCREEN.y + TOP_MARGIN)
+    # text right edge ends CENTER_GAP short of the screen centre (fake measure.x = 100)
+    self.assertEqual(pos.x + 100, SCREEN.x + SCREEN.width / 2 - CENTER_GAP)
 
   def test_no_draw_without_alert(self):
     alerts = DriverAlerts()
@@ -280,29 +280,29 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
       alerts.update()
     alerts.render(SCREEN)
 
-    self.draw_circle.assert_not_called()
+    self.draw_text.assert_not_called()
 
   def test_no_draw_when_disabled(self):
     alerts = self._fired_alerts()
     self.ui_state.driver_alerts = False
     alerts.render(SCREEN)
 
-    self.draw_circle.assert_not_called()
+    self.draw_text.assert_not_called()
 
   def test_no_draw_over_real_alert(self):
-    """A real selfdrive alert on screen suppresses the pop-up."""
+    """A real selfdrive alert on screen suppresses the legend."""
     self.ui_state.sm['selfdriveState'].alertSize = AlertSize.small
     alerts = self._fired_alerts()
     alerts.render(SCREEN)
 
-    self.draw_circle.assert_not_called()
+    self.draw_text.assert_not_called()
 
   def test_no_draw_before_driver_monitoring(self):
     self.ui_state.started_frame = 100  # driverStateV2 recv_frame (10) predates onroad
     alerts = self._fired_alerts()
     alerts.render(SCREEN)
 
-    self.draw_circle.assert_not_called()
+    self.draw_text.assert_not_called()
 
   def test_display_expires(self):
     alerts = self._fired_alerts()
@@ -311,7 +311,7 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
         alerts.update()
     alerts.render(SCREEN)
 
-    self.draw_circle.assert_not_called()
+    self.draw_text.assert_not_called()
 
 
 if __name__ == '__main__':

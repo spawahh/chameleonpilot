@@ -68,5 +68,5 @@ class ChameleonOverlays:
     self._blind_spot_indicators.render(rect)
     self._turn_signal_controller.render(rect)
     self._rocket_fuel.render(rect, ui_state.sm)
-    # centered pop-up, draws on top of the other widgets
+    # annunciator legend on the DM row, draws on top of the other widgets
     self._driver_alerts.render(rect)
