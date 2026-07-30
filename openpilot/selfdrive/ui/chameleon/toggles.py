@@ -46,6 +46,10 @@ DESCRIPTIONS = {
     "Draw an aircraft-style flight path vector on the road: a small winged circle marking where the car is actually travelling. " +
     "It centres itself at low speed, where the direction of travel means nothing."
   ),
+  "HideDriverFace": tr_noop(
+    "Hide the driver monitoring face icon at the bottom left of the onroad screen. " +
+    "Driver monitoring itself stays fully active — pair with the Driver Monitoring Annunciator to keep a readout on screen."
+  ),
   "HideDrivingPath": tr_noop(
     "Hide the colored driving path that openpilot draws on the road. " +
     "The flight path vector's ghost already rides the same planned path, so the two show the same information."
@@ -151,6 +155,12 @@ TOGGLE_DEFS = {
     lambda: tr("Pitch Ladder"),
     DESCRIPTIONS["PitchLadder"],
     "road.png",
+    False,
+  ),
+  "HideDriverFace": (
+    lambda: tr("Hide Driver Monitoring Face"),
+    DESCRIPTIONS["HideDriverFace"],
+    "monitoring.png",
     False,
   ),
   "HideDrivingPath": (

@@ -36,6 +36,7 @@ TEXT_SIZE = 44
 TOP_MARGIN = 160.0  # px below the rect top: the annunciator row; driver alert legends share this line
 PAD_X, PAD_Y = 24.0, 10.0
 BOX_THICKNESS = 4.0
+BOX_BG = rl.Color(0, 0, 0, 140)  # dark fill behind escalated states, same as the alert legends
 
 AlertLevel = log.DriverMonitoringState.AlertLevel
 MonitoringPolicy = log.DriverMonitoringState.MonitoringPolicy
@@ -57,16 +58,19 @@ class DmAnnunciator:
       return
 
     dm = sm['driverMonitoringState']
-    text, color, boxed = self._state(dm)
+    text, color, filled = self._state(dm)
 
     measure = measure_text_cached(self._font, text, TEXT_SIZE, 0)
     x = rect.x + rect.width / 2 - measure.x / 2
     y = rect.y + TOP_MARGIN
-    rl.draw_text_ex(self._font, text, rl.Vector2(x, y), TEXT_SIZE, 0, color)
 
-    if boxed:
-      box = rl.Rectangle(x - PAD_X, y - PAD_Y, measure.x + 2 * PAD_X, measure.y + 2 * PAD_Y)
-      rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
+    # boxed like the driver-alert legends, so the row reads as one panel;
+    # escalated states also get the dark fill
+    box = rl.Rectangle(x - PAD_X, y - PAD_Y, measure.x + 2 * PAD_X, measure.y + 2 * PAD_Y)
+    if filled:
+      rl.draw_rectangle_rec(box, BOX_BG)
+    rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
+    rl.draw_text_ex(self._font, text, rl.Vector2(x, y), TEXT_SIZE, 0, color)
 
   @staticmethod
   def _state(dm) -> tuple[str, rl.Color, bool]:

@@ -19,6 +19,7 @@ TOGGLES = {
   "dm_annunciator": "DmAnnunciator",
   "driver_alerts": "DriverAlerts",
   "flight_path_vector": "FlightPathVector",
+  "hide_driver_face": "HideDriverFace",
   "hide_driving_path": "HideDrivingPath",
   "hide_lane_lines": "HideLaneLines",
   "hide_speed_cluster": "HideSpeedCluster",

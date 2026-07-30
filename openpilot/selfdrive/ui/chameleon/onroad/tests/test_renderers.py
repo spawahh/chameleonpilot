@@ -10,16 +10,19 @@ import unittest
 from unittest import mock
 
 from openpilot.selfdrive.ui.chameleon.onroad import renderers
-from openpilot.selfdrive.ui.chameleon.onroad.renderers import ChameleonHudRenderer, ChameleonModelRenderer
+from openpilot.selfdrive.ui.chameleon.onroad.renderers import ChameleonDriverStateRenderer, ChameleonHudRenderer, ChameleonModelRenderer
+from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
 
 MODEL_OVERRIDES = ("_draw_lane_lines", "_draw_path", "_draw_lead_indicator")
 HUD_OVERRIDES = ("_draw_set_speed", "_draw_current_speed")
+DRIVER_STATE_OVERRIDES = ("render",)
 
 
 class FakeUIState:
   def __init__(self):
+    self.hide_driver_face = False
     self.hide_driving_path = False
     self.hide_lane_lines = False
     self.hide_speed_cluster = False
@@ -34,6 +37,8 @@ class TestSeam(unittest.TestCase):
       self.assertTrue(callable(getattr(ModelRenderer, name, None)), f"ModelRenderer.{name} is gone upstream")
     for name in HUD_OVERRIDES:
       self.assertTrue(callable(getattr(HudRenderer, name, None)), f"HudRenderer.{name} is gone upstream")
+    for name in DRIVER_STATE_OVERRIDES:
+      self.assertTrue(callable(getattr(DriverStateRenderer, name, None)), f"DriverStateRenderer.{name} is gone upstream")
 
   def test_augmented_road_view_constructs_the_subclasses(self):
     import openpilot.selfdrive.ui.onroad.augmented_road_view as arv
@@ -42,6 +47,7 @@ class TestSeam(unittest.TestCase):
       source = f.read()
     self.assertIn("ChameleonModelRenderer()", source)
     self.assertIn("ChameleonHudRenderer()", source)
+    self.assertIn("ChameleonDriverStateRenderer as DriverStateRenderer", source)
 
 
 class TestModelRendererGates(unittest.TestCase):
@@ -102,6 +108,27 @@ class TestModelRendererGates(unittest.TestCase):
 
     lanes.assert_not_called()
     path.assert_called_once()
+
+
+class TestDriverStateGate(unittest.TestCase):
+  def setUp(self):
+    self.ui_state = FakeUIState()
+    patcher = mock.patch.object(renderers, 'ui_state', self.ui_state)
+    patcher.start()
+    self.addCleanup(patcher.stop)
+
+    self.renderer = ChameleonDriverStateRenderer.__new__(ChameleonDriverStateRenderer)
+
+  def test_face_icon_gate(self):
+    parent = mock.patch.object(DriverStateRenderer, 'render').start()
+    self.addCleanup(mock.patch.stopall)
+
+    self.renderer.render(None)
+    parent.assert_called_once()
+
+    self.ui_state.hide_driver_face = True
+    self.renderer.render(None)
+    parent.assert_called_once()  # still once: the hidden call was suppressed
 
 
 class TestHudRendererGates(unittest.TestCase):
