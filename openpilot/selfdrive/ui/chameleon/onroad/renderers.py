@@ -11,6 +11,7 @@ method, the override stops being called and stock drawing returns — the hide
 stops working, nothing crashes. test_renderers.py pins each overridden name
 against the parent class so that drift is loud.
 """
+from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
 from openpilot.selfdrive.ui.ui_state import ui_state
@@ -45,3 +46,9 @@ class ChameleonHudRenderer(HudRenderer):
   def _draw_current_speed(self, rect) -> None:
     if not ui_state.hide_speed_cluster:
       super()._draw_current_speed(rect)
+
+
+class ChameleonDriverStateRenderer(DriverStateRenderer):
+  def render(self, rect) -> None:
+    if not ui_state.hide_driver_face:
+      super().render(rect)

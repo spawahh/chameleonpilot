@@ -48,6 +48,7 @@ class TestDmAnnunciator(unittest.TestCase):
     self._patch(mock.patch.object(da.gui_app, 'font', return_value=FakeFont()))
     self.text = self._patch(mock.patch.object(da.rl, 'draw_text_ex'))
     self.box = self._patch(mock.patch.object(da.rl, 'draw_rectangle_lines_ex'))
+    self.fill = self._patch(mock.patch.object(da.rl, 'draw_rectangle_rec'))
     self._patch(mock.patch.object(da, 'measure_text_cached', return_value=rl.Vector2(160, 44)))
     self.ui_state = FakeUIState()
     self._patch(mock.patch.object(da, 'ui_state', self.ui_state))
@@ -90,7 +91,8 @@ class TestDmAnnunciator(unittest.TestCase):
     text, color = self._drawn()
     self.assertEqual(text, "MON 94%")
     self.assertEqual((color.r, color.g, color.b), (GREEN.r, GREEN.g, GREEN.b))
-    self.box.assert_not_called()
+    self.box.assert_called_once()  # outlined like the alert legends
+    self.fill.assert_not_called()  # the dark fill is for escalations only
 
   def test_awareness_follows_the_active_policy(self):
     """The live percent lives on different sub-structs per policy."""
@@ -128,15 +130,15 @@ class TestDmAnnunciator(unittest.TestCase):
     text, color = self._drawn()
     self.assertEqual(text, "ATTENTION")
     self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
-    self.box.assert_not_called()
+    self.fill.assert_not_called()
 
-  def test_level_two_is_red_boxed(self):
+  def test_level_two_is_red_filled(self):
     self._render(FakeSubMaster(fake_dm(alert_level=da.AlertLevel.two)))
 
     text, color = self._drawn()
     self.assertEqual(text, "ATTENTION")
     self.assertEqual((color.r, color.g, color.b), (RED.r, RED.g, RED.b))
-    self.box.assert_called_once()
+    self.fill.assert_called_once()
 
   def test_lockout_beats_everything(self):
     self._render(FakeSubMaster(fake_dm(lockout=True, minutes=4, alert_level=da.AlertLevel.three)))
@@ -144,7 +146,7 @@ class TestDmAnnunciator(unittest.TestCase):
     text, color = self._drawn()
     self.assertEqual(text, "LOCKOUT 4 MIN")
     self.assertEqual((color.r, color.g, color.b), (RED.r, RED.g, RED.b))
-    self.box.assert_called_once()
+    self.fill.assert_called_once()
 
   def test_always_on_lockout_counts(self):
     self._render(FakeSubMaster(fake_dm(always_on_lockout=True)))
