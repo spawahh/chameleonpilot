@@ -124,12 +124,13 @@ class TestDmAnnunciator(unittest.TestCase):
     self.assertEqual(text, "MON 61%")
     self.assertEqual((color.r, color.g, color.b), (GREEN.r, GREEN.g, GREEN.b))
 
-  def test_level_one_is_amber_unboxed(self):
+  def test_level_one_is_amber_outlined_not_filled(self):
     self._render(FakeSubMaster(fake_dm(alert_level=da.AlertLevel.one)))
 
     text, color = self._drawn()
     self.assertEqual(text, "ATTENTION")
     self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
+    self.box.assert_called_once()
     self.fill.assert_not_called()
 
   def test_level_two_is_red_filled(self):
@@ -138,6 +139,7 @@ class TestDmAnnunciator(unittest.TestCase):
     text, color = self._drawn()
     self.assertEqual(text, "ATTENTION")
     self.assertEqual((color.r, color.g, color.b), (RED.r, RED.g, RED.b))
+    self.box.assert_called_once()
     self.fill.assert_called_once()
 
   def test_lockout_beats_everything(self):

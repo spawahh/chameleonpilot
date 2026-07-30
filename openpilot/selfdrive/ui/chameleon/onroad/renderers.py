@@ -49,6 +49,8 @@ class ChameleonHudRenderer(HudRenderer):
 
 
 class ChameleonDriverStateRenderer(DriverStateRenderer):
-  def render(self, rect) -> None:
+  # gates the draw, not Widget.render: upstream's own set_visible gate (no face
+  # during a full-screen alert, none before driverStateV2) must keep running
+  def _render(self, rect) -> None:
     if not ui_state.hide_driver_face:
-      super().render(rect)
+      super()._render(rect)

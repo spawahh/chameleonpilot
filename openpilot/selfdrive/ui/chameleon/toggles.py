@@ -48,7 +48,8 @@ DESCRIPTIONS = {
   ),
   "HideDriverFace": tr_noop(
     "Hide the driver monitoring face icon at the bottom left of the onroad screen. " +
-    "Driver monitoring itself stays fully active — pair with the Driver Monitoring Annunciator to keep a readout on screen."
+    "Driver monitoring itself stays fully active and still alerts you. With this on and the Driver Monitoring Annunciator off, " +
+    "nothing on screen shows your attention state until openpilot raises an alert."
   ),
   "HideDrivingPath": tr_noop(
     "Hide the colored driving path that openpilot draws on the road. " +
