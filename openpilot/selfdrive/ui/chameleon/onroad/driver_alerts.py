@@ -5,8 +5,10 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 
 Ported to chameleonpilot from sunnypilot's
-sunnypilot/selfdrive/controls/lib/e2e_alerts_helper.py (detection) and
-selfdrive/ui/sunnypilot/onroad/circular_alerts.py (rendering).
+sunnypilot/selfdrive/controls/lib/e2e_alerts_helper.py (detection). The
+rendering began as a port of selfdrive/ui/sunnypilot/onroad/circular_alerts.py
+and was reworked into an aircraft-style annunciator legend drawn in line with
+the driver-monitoring readout; only the detection half still follows sunnypilot.
 
 In sunnypilot the detection half runs inside the longitudinal planner and
 reaches the UI through a custom cereal field (longitudinalPlanSP.e2eAlerts).
@@ -20,9 +22,9 @@ the git-bundle workflow this fork uses to move commits between machines).
 import pyray as rl
 
 from openpilot.cereal import log
-from openpilot.selfdrive.ui import UI_BORDER_SIZE
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft.dm_annunciator import TOP_MARGIN
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.ui.lib.application import gui_app, FontWeight, FONT_SCALE
+from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 
 GREEN_LIGHT_X_THRESHOLD = 30  # m: model path this long means the road ahead opened up
@@ -31,11 +33,14 @@ TRIGGER_TIMER_THRESHOLD = 0.3  # s: the condition must hold this long
 LEAD_DEPART_ARM_DIST = 8.0  # m: a lead closer than this arms the departure alert
 LEAD_DEPART_ARM_TIME = 1.0  # s: the close lead must be there this long
 RECENT_MOVING_TIME = 2.0  # s: do not arm right after rolling to a stop
-ALERT_DISPLAY_TIME = 3.0  # s: how long the circle stays on screen
-ALERT_RADIUS = 250
-ALERT_RIGHT_MARGIN = 100
-ALERT_RING_THICKNESS = 7.5
-ALERT_TEXT_SIZE = 48
+ALERT_DISPLAY_TIME = 3.0  # s: how long the legend stays on screen
+ALERT_TEXT_SIZE = 44  # matches the DM annunciator, so the row reads as one panel
+CENTER_GAP = 250.0  # px between screen centre and the legend's right edge; clears "LOCKOUT 30 MIN"
+PAD_X, PAD_Y = 24.0, 10.0
+BOX_THICKNESS = 4.0
+BOX_BG = rl.Color(0, 0, 0, 140)
+GREEN = rl.Color(0, 255, 70, 230)  # aircraft green, same as the tapes and FPV
+WHITE = rl.Color(255, 255, 255, 255)
 
 
 class E2EStates:
@@ -174,8 +179,10 @@ class DriverAlertsHelper:
 
 
 class DriverAlerts:
-  """Circular pop-up on the right side of the road view, pulsing white/green
-  for 3 seconds when the helper fires an alert."""
+  """Annunciator legend in line with the driver-monitoring readout (top-centre
+  row), pulsing white/green for 3 seconds when the helper fires an alert. It
+  sits just left of centre so it never collides with the DM annunciator's own
+  text, and the two read as one caution panel."""
 
   def __init__(self):
     self._helper = DriverAlertsHelper()
@@ -197,9 +204,9 @@ class DriverAlerts:
     if self._helper.green_light_alert or self._helper.lead_depart_alert:
       self._display_timer = int(ALERT_DISPLAY_TIME * gui_app.target_fps)
       if self._helper.green_light_alert:
-        self._alert_text = "GREEN\nLIGHT"
+        self._alert_text = "GREEN LIGHT"
       else:
-        self._alert_text = "LEAD VEHICLE\nDEPARTING"
+        self._alert_text = "LEAD DEPARTING"
 
     if self._display_timer > 0:
       self._display_timer -= 1
@@ -211,23 +218,14 @@ class DriverAlerts:
     if not ui_state.driver_alerts or not self._allow_alerts or self._display_timer <= 0:
       return
 
-    center = rl.Vector2(
-      rect.x + rect.width - ALERT_RADIUS - ALERT_RIGHT_MARGIN - (UI_BORDER_SIZE * 3),
-      rect.y + rect.height / 2 + 20,
-    )
-
     is_pulsing = (self._alert_frame % gui_app.target_fps) < (gui_app.target_fps / 2.5)
-    ring_color = rl.Color(255, 255, 255, 75) if is_pulsing else rl.Color(0, 255, 0, 75)
-    text_color = rl.Color(255, 255, 255, 255) if is_pulsing else rl.Color(0, 255, 0, 190)
+    color = WHITE if is_pulsing else GREEN
 
-    rl.draw_circle_v(center, ALERT_RADIUS, rl.Color(0, 0, 0, 190))
-    rl.draw_ring(center, ALERT_RADIUS - ALERT_RING_THICKNESS, ALERT_RADIUS + ALERT_RING_THICKNESS, 0, 360, 0, ring_color)
-
-    # sunnypilot bottom-aligns the text under a 250 px image; the image is not
-    # ported, so center the text block in the circle instead
-    lines = self._alert_text.split('\n')
-    current_y = center.y - (len(lines) * ALERT_TEXT_SIZE * FONT_SCALE) / 2
-    for line in lines:
-      measure = measure_text_cached(self._font, line, ALERT_TEXT_SIZE, 0)
-      rl.draw_text_ex(self._font, line, rl.Vector2(center.x - measure.x / 2, current_y), ALERT_TEXT_SIZE, 0, text_color)
-      current_y += ALERT_TEXT_SIZE * FONT_SCALE
+    # right-aligned against the centre gap, on the DM annunciator's line
+    measure = measure_text_cached(self._font, self._alert_text, ALERT_TEXT_SIZE, 0)
+    x = rect.x + rect.width / 2 - CENTER_GAP - measure.x
+    y = rect.y + TOP_MARGIN
+    box = rl.Rectangle(x - PAD_X, y - PAD_Y, measure.x + 2 * PAD_X, measure.y + 2 * PAD_Y)
+    rl.draw_rectangle_rec(box, BOX_BG)
+    rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
+    rl.draw_text_ex(self._font, self._alert_text, rl.Vector2(x, y), ALERT_TEXT_SIZE, 0, color)
