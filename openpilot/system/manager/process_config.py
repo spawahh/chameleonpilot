@@ -126,7 +126,7 @@ procs = [
   # chameleonpilot: offline OSM map data (openpilot/chameleon/mapd)
   NativeProcess("mapd", chameleon_mapd.MAPD_ROOT, ["bash", "-c", f"{chameleon_mapd.MAPD_BIN} > /dev/null 2>&1"],
                 lambda started, params, CP: os.path.isfile(chameleon_mapd.MAPD_BIN)),
-  PythonProcess("mapd_manager", "openpilot.chameleon.mapd.manager", always_run),
+  PythonProcess("mapd_manager", "openpilot.chameleon.mapd.manager", always_run, restart_if_crash=True),
 ]
 
 managed_processes = {p.name: p for p in procs}

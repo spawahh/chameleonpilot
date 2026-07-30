@@ -17,6 +17,7 @@ region all mean liveMapData with speedLimitValid=False and an empty roadName.
 """
 import json
 import math
+from typing import Any
 
 import openpilot.cereal.messaging as messaging
 from openpilot.chameleon.mapd import MEM_PARAMS_PATH
@@ -27,6 +28,14 @@ from openpilot.common.swaglog import cloudlog
 
 INSTALL_RETRY_TICKS = 60  # 1 Hz loop -> retry a failed install once a minute
 MAX_SPEED_LIMIT_MS = 75.0  # ~270 km/h; above this the value is OSM garbage
+
+
+def safe_float(value: Any) -> float:
+  """Zero for anything that isn't a number — the Go binary's JSON can carry nulls."""
+  try:
+    return float(value) if value is not None else 0.0
+  except (TypeError, ValueError):
+    return 0.0
 
 
 def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -87,7 +96,9 @@ class MapdManager:
     else:
       locations = {"nations": [nation], "states": []}
 
-    self.mem_params.put("OSMDownloadLocations", json.dumps(locations))
+    # OSMDownloadLocations is JSON-typed: Params.put wants the dict itself, not a string.
+    # A string here raises TypeError — the crash that killed this daemon on-road 2026.07.29.
+    self.mem_params.put("OSMDownloadLocations", locations)
     cloudlog.info(f"chameleon mapd: requested OSM download {locations}")
 
   def publish(self) -> None:
@@ -101,34 +112,36 @@ class MapdManager:
     live.roadName = self.mem_params.get("RoadName") or ""
 
     next_limit = self._mem_json("NextMapSpeedLimit")
-    ahead = float(next_limit.get("speedlimit", 0.0))
+    ahead = safe_float(next_limit.get("speedlimit"))
     live.speedLimitAhead = ahead
     live.speedLimitAheadValid = bool(0.0 < ahead < MAX_SPEED_LIMIT_MS)
     if live.speedLimitAheadValid and self._last_position is not None:
       live.speedLimitAheadDistance = haversine_m(*self._last_position,
-                                                 float(next_limit.get("latitude", 0.0)),
-                                                 float(next_limit.get("longitude", 0.0)))
+                                                 safe_float(next_limit.get("latitude")),
+                                                 safe_float(next_limit.get("longitude")))
 
     self.pm.send('liveMapData', msg)
 
   def _mem_float(self, key: str) -> float:
-    try:
-      return float(self.mem_params.get(key) or 0.0)
-    except ValueError:
-      return 0.0
+    return safe_float(self.mem_params.get(key))
 
   def _mem_json(self, key: str) -> dict:
-    try:
-      return json.loads(self.mem_params.get(key) or "{}") or {}
-    except ValueError:
-      return {}
+    # JSON-typed keys come out of Params.get already parsed (dict), or None when
+    # empty/garbage. Anything that isn't a dict — including a bare JSON list — is nothing.
+    value = self.mem_params.get(key)
+    return value if isinstance(value, dict) else {}
 
   def step(self) -> None:
-    self.sm.update(0)
-    self.maybe_install()
-    self.update_position()
-    self.update_download_request()
-    self.publish()
+    # display-only daemon: a bad tick is dropped and logged, never a crash loop.
+    # An uncaught exception here once left the process dead for a whole drive.
+    try:
+      self.sm.update(0)
+      self.maybe_install()
+      self.update_position()
+      self.update_download_request()
+      self.publish()
+    except Exception:
+      cloudlog.exception("chameleon mapd: tick failed")
 
 
 def main():

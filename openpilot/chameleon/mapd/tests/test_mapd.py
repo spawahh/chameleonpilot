@@ -18,21 +18,64 @@ from openpilot.chameleon.mapd import installer as installer_mod
 from openpilot.chameleon.mapd.manager import MapdManager, haversine_m
 
 
+# the declared types from params_keys.h for every key mapd touches — the fake
+# must deserialize/enforce exactly like the real Params or it hides type bugs
+# (an untyped fake is how the 2026.07.29 on-road TypeError got through)
+KEY_TYPES = {
+  "LastGPSPosition": str,
+  "MapSpeedLimit": float,
+  "MapdVersion": str,
+  "NextMapSpeedLimit": dict,
+  "OSMDownloadBounds": str,
+  "OSMDownloadLocations": dict,
+  "OSMDownloadProgress": dict,
+  "OsmDbUpdatesCheck": bool,
+  "OsmLocationName": str,
+  "OsmStateName": str,
+  "RoadName": str,
+}
+
+
 class FakeParams:
+  """Stores serialized strings like the on-disk params, deserializes on get()
+  and type-checks on put(), mirroring common/params.py's CPP_2_PYTHON /
+  PYTHON_2_CPP behaviour for the key types mapd uses."""
+
   def __init__(self, values=None):
-    self.values = dict(values or {})
+    self.values = dict(values or {})  # serialized, as the files hold them
 
   def get(self, key, return_default=False):
-    return self.values.get(key)
+    raw = self.values.get(key)
+    if raw is None:
+      return None
+    t = KEY_TYPES[key]
+    try:
+      if t is float:
+        return float(raw)
+      if t is dict:
+        return json.loads(raw)
+      if t is bool:
+        return raw == "1"
+      return raw
+    except (TypeError, ValueError):
+      return None  # the real Params falls back to the default (None here)
 
   def get_bool(self, key):
-    return bool(self.values.get(key, False))
+    return self.values.get(key) == "1"
 
   def put(self, key, value, block=False):
-    self.values[key] = value
+    t = KEY_TYPES[key]
+    if t is dict and isinstance(value, (dict, list)):
+      self.values[key] = json.dumps(value)
+    elif t is float and isinstance(value, float):
+      self.values[key] = str(value)
+    elif t is str and isinstance(value, str):
+      self.values[key] = value
+    else:
+      raise TypeError(f"Type mismatch while writing param {key}: {type(value)=} {value=}")
 
   def put_bool(self, key, value, block=False):
-    self.values[key] = value
+    self.values[key] = "1" if value else "0"
 
 
 class FakeSubMaster(dict):
@@ -155,6 +198,18 @@ class TestManagerPublish(unittest.TestCase):
       live, _ = self._sent(manager)
       self.assertFalse(live.speedLimitValid, garbage)
 
+  def test_null_next_limit_fields_are_quiet(self):
+    """The Go binary's JSON can carry nulls; float(None) must not kill the daemon."""
+    mem = FakeParams({"NextMapSpeedLimit": json.dumps({"speedlimit": None, "latitude": None, "longitude": None})})
+    live, _ = self._sent(make_manager(mem=mem))
+    self.assertFalse(live.speedLimitAheadValid)
+
+  def test_non_dict_json_is_quiet(self):
+    for garbage in ("[1, 2]", '"just a string"', "not json at all"):
+      manager = make_manager(mem=FakeParams({"NextMapSpeedLimit": garbage}))
+      live, _ = self._sent(manager)
+      self.assertFalse(live.speedLimitAheadValid, garbage)
+
 
 class TestManagerInputs(unittest.TestCase):
   def test_position_written_only_with_a_fix(self):
@@ -171,23 +226,33 @@ class TestManagerInputs(unittest.TestCase):
     self.assertEqual(written["bearing"], 90.0)
 
   def test_state_download_request(self):
-    params = FakeParams({"OsmDbUpdatesCheck": True, "OsmLocationName": "US", "OsmStateName": "Washington"})
+    params = FakeParams({"OsmDbUpdatesCheck": "1", "OsmLocationName": "US", "OsmStateName": "Washington"})
     manager = make_manager(params=params)
 
     manager.update_download_request()
 
     locations = json.loads(manager.mem_params.values["OSMDownloadLocations"])
     self.assertEqual(locations, {"nations": [], "states": ["Washington"]})
-    self.assertFalse(params.values["OsmDbUpdatesCheck"])
+    self.assertFalse(params.get_bool("OsmDbUpdatesCheck"))
 
   def test_all_states_downloads_the_nation(self):
-    params = FakeParams({"OsmDbUpdatesCheck": True, "OsmLocationName": "US", "OsmStateName": "All"})
+    params = FakeParams({"OsmDbUpdatesCheck": "1", "OsmLocationName": "US", "OsmStateName": "All"})
     manager = make_manager(params=params)
 
     manager.update_download_request()
 
     locations = json.loads(manager.mem_params.values["OSMDownloadLocations"])
     self.assertEqual(locations, {"nations": ["US"], "states": []})
+
+  def test_a_bad_tick_never_raises(self):
+    """One uncaught exception once left the daemon dead for a whole drive and
+    blocked engagement. step() must swallow, log, and carry on."""
+    manager = make_manager()
+    with mock.patch('openpilot.chameleon.mapd.manager.install_needed', return_value=False), \
+         mock.patch.object(manager, 'publish', side_effect=RuntimeError("boom")), \
+         mock.patch('openpilot.chameleon.mapd.manager.cloudlog') as log:
+      manager.step()  # must not raise
+    log.exception.assert_called_once()
 
   def test_failed_install_backs_off(self):
     manager = make_manager()
