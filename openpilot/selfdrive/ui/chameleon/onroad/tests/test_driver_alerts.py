@@ -5,8 +5,9 @@ import pyray as rl
 
 from openpilot.cereal import log
 from openpilot.selfdrive.ui.chameleon.onroad import driver_alerts as da
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft import dm_annunciator as dma
 from openpilot.selfdrive.ui.chameleon.onroad.driver_alerts import (
-  CENTER_GAP, TOP_MARGIN, DriverAlerts, DriverAlertsHelper, E2EStates,
+  TOP_MARGIN, DriverAlerts, DriverAlertsHelper, E2EStates,
 )
 
 DT = 0.05  # deterministic tick for tests, matches DT_MDL
@@ -240,7 +241,8 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
     self.draw_box = self._patch(mock.patch.object(da.rl, 'draw_rectangle_rec'))
     self.draw_outline = self._patch(mock.patch.object(da.rl, 'draw_rectangle_lines_ex'))
     self.draw_text = self._patch(mock.patch.object(da.rl, 'draw_text_ex'))
-    self._patch(mock.patch.object(da, 'measure_text_cached', return_value=rl.Vector2(100, 48)))
+    # draw_legend lives in dm_annunciator; patch the measure it actually calls
+    self._patch(mock.patch.object(dma, 'measure_text_cached', return_value=rl.Vector2(100, 48)))
     self.chime = self._patch(mock.patch.object(da, 'chime'))
 
   def _fired_alerts(self):
@@ -266,8 +268,8 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
     self.assertEqual(self.draw_outline.call_count, 2)
     self.assertEqual(self.draw_text.call_count, 2)
 
-  def test_legends_share_one_row_with_the_dm_annunciator(self):
-    """Side by side on the readout's line, the group ending at the centre gap."""
+  def test_legends_sit_in_their_row_slots(self):
+    """Centred in the annunciator row's first two slots, one line."""
     alerts = self._fired_alerts()
     alerts.render(SCREEN)
 
@@ -276,10 +278,9 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
     self.assertEqual(first.y, SCREEN.y + TOP_MARGIN)
     self.assertEqual(second.y, SCREEN.y + TOP_MARGIN)  # one line, not stacked
 
-    # fake measure.x = 100 for both, so the pitch is width + padding + the gap
-    self.assertEqual(second.x - first.x, 100 + 2 * da.PAD_X + da.LEGEND_GAP)
-    # and the group's right edge stops CENTER_GAP short of the screen centre
-    self.assertEqual(second.x + 100 + da.PAD_X, SCREEN.x + SCREEN.width / 2 - CENTER_GAP)
+    # fake measure.x = 100, so each text starts 50 left of its slot centre
+    self.assertEqual(first.x + 50, dma.slot_x(SCREEN, dma.SLOT_GREEN_LIGHT))
+    self.assertEqual(second.x + 50, dma.slot_x(SCREEN, dma.SLOT_LEAD_DEPART))
 
   def test_idle_legends_draw_dim_with_no_fill(self):
     alerts = DriverAlerts()

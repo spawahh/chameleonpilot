@@ -10,9 +10,10 @@ States, escalating:
 - monitoring normally: small "MON 94%" readout, awareness from whichever policy
   is active (vision vs wheeltouch — the percent lives on different sub-structs).
   Green above AMBER_PERCENT, amber as the score drains, red below RED_PERCENT.
-  Two cues jump the queue because they move instantly: "NO FACE" in amber when
-  the camera loses the face, and amber the moment the model calls you
-  distracted, before the score has moved at all.
+  Two cues jump the queue: "NO FACE" in amber when the camera loses the face,
+  and amber when the model calls you distracted — the latter behind a short
+  dwell-and-hold, because the raw flag flickers on brief pose excursions and a
+  flashing readout is itself a distraction.
 - alertLevel one: amber "ATTENTION"; two and three: red.
 - lockout (including always-on lockout): red "LOCKOUT", with minutes remaining
   when the message carries them.
@@ -51,13 +52,42 @@ BOX_BG = rl.Color(0, 0, 0, 140)  # dark fill behind escalated states, same as th
 AMBER_PERCENT = 90
 RED_PERCENT = 75
 
+# The distracted cue needs a dwell: isDistracted is instantaneous and a brief
+# pose excursion made the readout flash amber for single frames — a distraction
+# itself. Amber only after the flag holds DISTRACTED_DWELL_S, then stays at
+# least DISTRACTED_HOLD_S so it never strobes.
+DISTRACTED_DWELL_S = 0.5
+DISTRACTED_HOLD_S = 1.0
+
+# The annunciator row: five evenly spaced slots across the top.
+SLOTS = 5
+SLOT_GREEN_LIGHT, SLOT_LEAD_DEPART, SLOT_MON, SLOT_TURN, SLOT_TEMP = range(SLOTS)
+
 AlertLevel = log.DriverMonitoringState.AlertLevel
 MonitoringPolicy = log.DriverMonitoringState.MonitoringPolicy
+
+
+def slot_x(rect: rl.Rectangle, slot: int) -> float:
+  """Centre x of an annunciator slot; every legend in the row uses this."""
+  return rect.x + rect.width * (slot + 0.5) / SLOTS
+
+
+def draw_legend(font: rl.Font, text: str, cx: float, y: float, color: rl.Color, filled: bool = False) -> None:
+  """One boxed legend, centred on cx — the row's single drawing primitive."""
+  measure = measure_text_cached(font, text, TEXT_SIZE, 0)
+  x = cx - measure.x / 2
+  box = rl.Rectangle(x - PAD_X, y - PAD_Y, measure.x + 2 * PAD_X, measure.y + 2 * PAD_Y)
+  if filled:
+    rl.draw_rectangle_rec(box, BOX_BG)
+  rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
+  rl.draw_text_ex(font, text, rl.Vector2(x, y), TEXT_SIZE, 0, color)
 
 
 class DmAnnunciator:
   def __init__(self):
     self._font: rl.Font = gui_app.font(FontWeight.MEDIUM)
+    self._distracted_frames = 0
+    self._amber_hold_frames = 0
 
   def render(self, rect: rl.Rectangle, sm) -> None:
     if not ui_state.dm_annunciator:
@@ -72,18 +102,19 @@ class DmAnnunciator:
 
     dm = sm['driverMonitoringState']
     text, color, filled = self._state(dm)
+    draw_legend(self._font, text, slot_x(rect, SLOT_MON), rect.y + TOP_MARGIN, color, filled)
 
-    measure = measure_text_cached(self._font, text, TEXT_SIZE, 0)
-    x = rect.x + rect.width / 2 - measure.x / 2
-    y = rect.y + TOP_MARGIN
+  def _distracted_steady(self, distracted: bool) -> bool:
+    """The dwell: amber only after the flag holds, then held so it cannot strobe."""
+    fps = gui_app.target_fps
+    self._distracted_frames = self._distracted_frames + 1 if distracted else 0
 
-    # boxed like the driver-alert legends, so the row reads as one panel;
-    # escalated states also get the dark fill
-    box = rl.Rectangle(x - PAD_X, y - PAD_Y, measure.x + 2 * PAD_X, measure.y + 2 * PAD_Y)
-    if filled:
-      rl.draw_rectangle_rec(box, BOX_BG)
-    rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
-    rl.draw_text_ex(self._font, text, rl.Vector2(x, y), TEXT_SIZE, 0, color)
+    if self._distracted_frames >= int(DISTRACTED_DWELL_S * fps):
+      self._amber_hold_frames = int(DISTRACTED_HOLD_S * fps)
+    elif self._amber_hold_frames > 0:
+      self._amber_hold_frames -= 1
+
+    return self._amber_hold_frames > 0
 
   @staticmethod
   def _awareness_percent(dm) -> int:
@@ -91,8 +122,7 @@ class DmAnnunciator:
       return int(dm.visionPolicyState.awarenessPercent)
     return int(dm.wheeltouchPolicyState.awarenessPercent)
 
-  @staticmethod
-  def _state(dm) -> tuple[str, rl.Color, bool]:
+  def _state(self, dm) -> tuple[str, rl.Color, bool]:
     if dm.lockout or dm.alwaysOnLockout:
       minutes = int(dm.lockoutMinutesRemaining)
       text = f"LOCKOUT {minutes} MIN" if minutes > 0 else "LOCKOUT"
@@ -103,11 +133,12 @@ class DmAnnunciator:
     if dm.alertLevel == AlertLevel.one:
       return "ATTENTION", AMBER, False
 
-    distracted = False
+    raw_distracted = False
     if dm.activePolicy == MonitoringPolicy.vision:
       if not dm.visionPolicyState.faceDetected:
         return "NO FACE", AMBER, False
-      distracted = dm.visionPolicyState.isDistracted
+      raw_distracted = dm.visionPolicyState.isDistracted
+    distracted = self._distracted_steady(raw_distracted)
 
     percent = DmAnnunciator._awareness_percent(dm)
     text = f"MON {percent}%"
