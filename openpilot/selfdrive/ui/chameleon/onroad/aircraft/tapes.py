@@ -72,7 +72,10 @@ class VerticalTape:
         if is_major:
           label = str(int(tick))
           measure = measure_text_cached(self._font, label, LABEL_SIZE, 0)
-          label_x = edge - direction * (length + 8) - (measure.x if self._ticks_on_right else 0.0)
+          # the label goes beyond the far end of the tick, never back across it:
+          # right-side ticks grow rightward so the text starts there, left-side
+          # ticks grow leftward so the text has to end there instead
+          label_x = edge - direction * (length + 8) - (0.0 if self._ticks_on_right else measure.x)
           rl.draw_text_ex(self._font, label, rl.Vector2(label_x, y - measure.y / 2), LABEL_SIZE, 0, DIM)
       tick += self._minor
 

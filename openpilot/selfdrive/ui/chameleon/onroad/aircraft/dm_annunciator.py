@@ -7,11 +7,12 @@ shows head pose only). This widget puts that state where a pilot would look
 for a caution light: top-centre, under the header.
 
 States, escalating:
-- monitoring normally: small "MON 94%" readout in aircraft green, awareness
-  from whichever policy is active (vision vs wheeltouch — the percent lives on
-  different sub-structs). The percent only drains on *sustained* distraction,
-  so the live cues come first: "NO FACE" in amber when the camera loses the
-  face, and the readout turns amber the moment the model calls you distracted.
+- monitoring normally: small "MON 94%" readout, awareness from whichever policy
+  is active (vision vs wheeltouch — the percent lives on different sub-structs).
+  Green above AMBER_PERCENT, amber as the score drains, red below RED_PERCENT.
+  Two cues jump the queue because they move instantly: "NO FACE" in amber when
+  the camera loses the face, and amber the moment the model calls you
+  distracted, before the score has moved at all.
 - alertLevel one: amber "ATTENTION"; two and three: red.
 - lockout (including always-on lockout): red "LOCKOUT", with minutes remaining
   when the message carries them.
@@ -40,6 +41,13 @@ TOP_MARGIN = 160.0  # px below the rect top: the annunciator row; driver alert l
 PAD_X, PAD_Y = 24.0, 10.0
 BOX_THICKNESS = 4.0
 BOX_BG = rl.Color(0, 0, 0, 140)  # dark fill behind escalated states, same as the alert legends
+
+# The readout colours off the awareness percent itself, at the values Marcus
+# reads on the road, rather than waiting for openpilot's own alert levels
+# (those land far lower — level one at ~62%, level two at ~38% — so the
+# readout would sit green through the whole visible part of the drain).
+AMBER_PERCENT = 90
+RED_PERCENT = 75
 
 AlertLevel = log.DriverMonitoringState.AlertLevel
 MonitoringPolicy = log.DriverMonitoringState.MonitoringPolicy
@@ -87,16 +95,19 @@ class DmAnnunciator:
     if dm.alertLevel == AlertLevel.one:
       return "ATTENTION", AMBER, False
 
-    # The awareness percent sits at 100 unless distraction is *sustained*, so
-    # by itself the readout barely moves. The states that do move in real time:
-    # face lock and the instantaneous distracted flag.
+    distracted = False
     if dm.activePolicy == MonitoringPolicy.vision:
       vp = dm.visionPolicyState
       if not vp.faceDetected:
         return "NO FACE", AMBER, False
       percent = int(vp.awarenessPercent)
-      if vp.isDistracted:
-        return f"MON {percent}%", AMBER, False
+      distracted = vp.isDistracted
     else:
       percent = int(dm.wheeltouchPolicyState.awarenessPercent)
-    return f"MON {percent}%", GREEN, False
+
+    text = f"MON {percent}%"
+    if percent < RED_PERCENT:
+      return text, RED, True
+    if percent < AMBER_PERCENT or distracted:
+      return text, AMBER, False
+    return text, GREEN, False

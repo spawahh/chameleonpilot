@@ -266,17 +266,20 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
     self.assertEqual(self.draw_outline.call_count, 2)
     self.assertEqual(self.draw_text.call_count, 2)
 
-  def test_legends_sit_on_the_dm_annunciator_lines(self):
-    """In line with the driver-monitoring readout, right-aligned against the centre gap."""
+  def test_legends_share_one_row_with_the_dm_annunciator(self):
+    """Side by side on the readout's line, the group ending at the centre gap."""
     alerts = self._fired_alerts()
     alerts.render(SCREEN)
 
     first = self.draw_text.call_args_list[0].args[2]
     second = self.draw_text.call_args_list[1].args[2]
     self.assertEqual(first.y, SCREEN.y + TOP_MARGIN)
-    self.assertEqual(second.y, SCREEN.y + TOP_MARGIN + da.ROW_STEP)
-    # text right edge ends CENTER_GAP short of the screen centre (fake measure.x = 100)
-    self.assertEqual(first.x + 100, SCREEN.x + SCREEN.width / 2 - CENTER_GAP)
+    self.assertEqual(second.y, SCREEN.y + TOP_MARGIN)  # one line, not stacked
+
+    # fake measure.x = 100 for both, so the pitch is width + padding + the gap
+    self.assertEqual(second.x - first.x, 100 + 2 * da.PAD_X + da.LEGEND_GAP)
+    # and the group's right edge stops CENTER_GAP short of the screen centre
+    self.assertEqual(second.x + 100 + da.PAD_X, SCREEN.x + SCREEN.width / 2 - CENTER_GAP)
 
   def test_idle_legends_draw_dim_with_no_fill(self):
     alerts = DriverAlerts()

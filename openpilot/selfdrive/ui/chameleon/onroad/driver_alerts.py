@@ -37,7 +37,7 @@ RECENT_MOVING_TIME = 2.0  # s: do not arm right after rolling to a stop
 ALERT_DISPLAY_TIME = 3.0  # s: how long the legend stays on screen
 ALERT_TEXT_SIZE = 44  # matches the DM annunciator, so the row reads as one panel
 CENTER_GAP = 250.0  # px between screen centre and the legends' right edge; clears "LOCKOUT 30 MIN"
-ROW_STEP = 84.0  # second legend row sits this far below the first
+LEGEND_GAP = 24.0  # px between the two legends, side by side on one row
 # box geometry is imported from dm_annunciator, not restated: these legends and
 # the MON readout have to line up as one panel
 GREEN = rl.Color(0, 255, 70, 230)  # aircraft green, same as the tapes and FPV
@@ -184,11 +184,11 @@ class DriverAlertsHelper:
 
 
 class DriverAlerts:
-  """Annunciator legends in line with the driver-monitoring readout, just left
-  of centre so they never collide with its text. Both legends stay visible but
-  unlit (dim outline) whenever the widget is allowed to draw; a firing alert
-  brightens its legend with a white/green pulse for 3 seconds and asks soundd
-  for a one-shot chime."""
+  """Annunciator legends on one row with the driver-monitoring readout, side by
+  side and ending just left of it so they never collide with its text. Both
+  legends stay visible but unlit (dim outline) whenever the widget is allowed to
+  draw; a firing alert brightens its legend with a white/green pulse for 3
+  seconds and asks soundd for a one-shot chime."""
 
   def __init__(self):
     self._helper = DriverAlertsHelper()
@@ -228,15 +228,18 @@ class DriverAlerts:
     is_pulsing = (self._alert_frame % gui_app.target_fps) < (gui_app.target_fps / 2.5)
     active_color = WHITE if is_pulsing else GREEN
 
-    # right-aligned against the centre gap, stacked from the DM annunciator's line
-    for i, text in enumerate(LEGENDS):
+    # one row, side by side, the group ending CENTER_GAP short of the MON readout
+    measures = [measure_text_cached(self._font, text, ALERT_TEXT_SIZE, 0) for text in LEGENDS]
+    group_width = sum(m.x + 2 * PAD_X for m in measures) + LEGEND_GAP * (len(LEGENDS) - 1)
+    x = rect.x + rect.width / 2 - CENTER_GAP - group_width + PAD_X
+    y = rect.y + TOP_MARGIN
+
+    for text, measure in zip(LEGENDS, measures, strict=True):
       active = self._display_timer > 0 and text == self._alert_text
       color = active_color if active else DIM
-      measure = measure_text_cached(self._font, text, ALERT_TEXT_SIZE, 0)
-      x = rect.x + rect.width / 2 - CENTER_GAP - measure.x
-      y = rect.y + TOP_MARGIN + i * ROW_STEP
       box = rl.Rectangle(x - PAD_X, y - PAD_Y, measure.x + 2 * PAD_X, measure.y + 2 * PAD_Y)
       if active:
         rl.draw_rectangle_rec(box, BOX_BG)
       rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
       rl.draw_text_ex(self._font, text, rl.Vector2(x, y), ALERT_TEXT_SIZE, 0, color)
+      x += measure.x + 2 * PAD_X + LEGEND_GAP
