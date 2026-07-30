@@ -13,6 +13,7 @@ from openpilot.common.swaglog import cloudlog
 
 from openpilot.system import micd
 from openpilot.common.hardware import HARDWARE
+from openpilot.chameleon.chime import ChimePoller
 
 SAMPLE_RATE = 48000
 SAMPLE_BUFFER = 4096 # (approx 100ms)
@@ -75,6 +76,7 @@ class Soundd:
     self.pending_stop = False
 
     self.spl_filter_weighted = FirstOrderFilter(0, 2.5, FILTER_DT, initialized=False)
+    self.chameleon_chime = ChimePoller()
 
   def load_sounds(self):
     self.loaded_sounds: dict[int, np.ndarray] = {}
@@ -183,6 +185,9 @@ class Soundd:
             self.current_volume = self.calculate_volume(float(self.spl_filter_weighted.x))
 
         self.get_audible_alert(sm)
+
+        if self.current_alert == AudibleAlert.none:  # chameleonpilot: real alerts always win
+          self.update_alert(self.chameleon_chime.pop())
 
         # Ramp up immediate warning sound over 4s
         if self.current_alert == AudibleAlert.warningImmediate:

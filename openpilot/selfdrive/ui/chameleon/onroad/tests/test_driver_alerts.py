@@ -241,6 +241,7 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
     self.draw_outline = self._patch(mock.patch.object(da.rl, 'draw_rectangle_lines_ex'))
     self.draw_text = self._patch(mock.patch.object(da.rl, 'draw_text_ex'))
     self._patch(mock.patch.object(da, 'measure_text_cached', return_value=rl.Vector2(100, 48)))
+    self.chime = self._patch(mock.patch.object(da, 'chime'))
 
   def _fired_alerts(self):
     """A DriverAlerts widget whose helper just pulsed the green light alert."""
@@ -251,36 +252,43 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
     alerts._helper.green_light_alert = False
     return alerts
 
-  def test_alert_latches_display_timer(self):
+  def test_alert_latches_display_timer_and_chimes_once(self):
     alerts = self._fired_alerts()
     self.assertEqual(alerts._display_timer, int(3.0 * da.gui_app.target_fps) - 1)
     self.assertEqual(alerts._alert_text, "GREEN LIGHT")
+    self.chime.request.assert_called_once_with(da.CHIME)
 
-  def test_render_draws_boxed_legend(self):
+  def test_active_legend_is_boxed_both_stay_visible(self):
     alerts = self._fired_alerts()
     alerts.render(SCREEN)
 
-    self.draw_box.assert_called_once()
-    self.draw_outline.assert_called_once()
-    self.draw_text.assert_called_once()
+    self.draw_box.assert_called_once()  # background fill only behind the active legend
+    self.assertEqual(self.draw_outline.call_count, 2)
+    self.assertEqual(self.draw_text.call_count, 2)
 
-  def test_legend_sits_on_the_dm_annunciator_line(self):
+  def test_legends_sit_on_the_dm_annunciator_lines(self):
     """In line with the driver-monitoring readout, right-aligned against the centre gap."""
     alerts = self._fired_alerts()
     alerts.render(SCREEN)
 
-    pos = self.draw_text.call_args.args[2]
-    self.assertEqual(pos.y, SCREEN.y + TOP_MARGIN)
+    first = self.draw_text.call_args_list[0].args[2]
+    second = self.draw_text.call_args_list[1].args[2]
+    self.assertEqual(first.y, SCREEN.y + TOP_MARGIN)
+    self.assertEqual(second.y, SCREEN.y + TOP_MARGIN + da.ROW_STEP)
     # text right edge ends CENTER_GAP short of the screen centre (fake measure.x = 100)
-    self.assertEqual(pos.x + 100, SCREEN.x + SCREEN.width / 2 - CENTER_GAP)
+    self.assertEqual(first.x + 100, SCREEN.x + SCREEN.width / 2 - CENTER_GAP)
 
-  def test_no_draw_without_alert(self):
+  def test_idle_legends_draw_dim_with_no_fill(self):
     alerts = DriverAlerts()
     with mock.patch.object(alerts._helper, 'update'):
       alerts.update()
     alerts.render(SCREEN)
 
-    self.draw_text.assert_not_called()
+    self.draw_box.assert_not_called()
+    self.assertEqual(self.draw_text.call_count, 2)
+    for call in self.draw_text.call_args_list:
+      self.assertEqual(call.args[5], da.DIM)
+    self.chime.request.assert_not_called()
 
   def test_no_draw_when_disabled(self):
     alerts = self._fired_alerts()
@@ -290,7 +298,7 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
     self.draw_text.assert_not_called()
 
   def test_no_draw_over_real_alert(self):
-    """A real selfdrive alert on screen suppresses the legend."""
+    """A real selfdrive alert on screen suppresses the legends entirely."""
     self.ui_state.sm['selfdriveState'].alertSize = AlertSize.small
     alerts = self._fired_alerts()
     alerts.render(SCREEN)
@@ -304,14 +312,16 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
 
     self.draw_text.assert_not_called()
 
-  def test_display_expires(self):
+  def test_display_expires_back_to_dim(self):
     alerts = self._fired_alerts()
     with mock.patch.object(alerts._helper, 'update'):
       for _ in range(int(3.0 * da.gui_app.target_fps) + 1):
         alerts.update()
     alerts.render(SCREEN)
 
-    self.draw_text.assert_not_called()
+    self.draw_box.assert_not_called()  # no fill: nothing active any more
+    self.assertEqual(self.draw_text.call_count, 2)  # but the dim legends remain
+    self.chime.request.assert_called_once()  # and the chime never replayed
 
 
 if __name__ == '__main__':

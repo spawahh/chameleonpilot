@@ -34,12 +34,13 @@ DESCRIPTIONS = {
   ),
   "DmAnnunciator": tr_noop(
     "Show an aircraft-style caution readout at the top of the onroad screen for driver monitoring: " +
-    "your attention score while all is well, an amber then red ATTENTION as openpilot escalates, " +
-    "and a red LOCKOUT box when driver monitoring has locked you out."
+    "your attention score while all is well (it turns amber the moment you look away, and NO FACE means the camera lost you), " +
+    "an amber then red ATTENTION as openpilot escalates, and a red LOCKOUT box when driver monitoring has locked you out."
   ),
   "DriverAlerts": tr_noop(
-    "Show a pop-up while stopped and disengaged when the traffic light ahead turns green (no lead car and the driving model sees an open road) " +
-    "or when the car in front starts to drive away. Visual only, no sound."
+    "Show GREEN LIGHT and LEAD DEPARTING annunciator legends next to the driver monitoring readout. " +
+    "They stay dim while armed, then brighten with a chime while stopped and disengaged when the light ahead turns green " +
+    "(no lead car and the driving model sees an open road) or when the car in front starts to drive away."
   ),
   "FlightPathVector": tr_noop(
     "Draw an aircraft-style flight path vector on the road: a small winged circle marking where the car is actually travelling. " +
