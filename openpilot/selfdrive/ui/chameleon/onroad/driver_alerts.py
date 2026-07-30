@@ -22,6 +22,7 @@ the git-bundle workflow this fork uses to move commits between machines).
 import pyray as rl
 
 from openpilot.cereal import log
+from openpilot.chameleon import chime
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.dm_annunciator import TOP_MARGIN
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
@@ -35,12 +36,17 @@ LEAD_DEPART_ARM_TIME = 1.0  # s: the close lead must be there this long
 RECENT_MOVING_TIME = 2.0  # s: do not arm right after rolling to a stop
 ALERT_DISPLAY_TIME = 3.0  # s: how long the legend stays on screen
 ALERT_TEXT_SIZE = 44  # matches the DM annunciator, so the row reads as one panel
-CENTER_GAP = 250.0  # px between screen centre and the legend's right edge; clears "LOCKOUT 30 MIN"
+CENTER_GAP = 250.0  # px between screen centre and the legends' right edge; clears "LOCKOUT 30 MIN"
+ROW_STEP = 84.0  # second legend row sits this far below the first
 PAD_X, PAD_Y = 24.0, 10.0
 BOX_THICKNESS = 4.0
 BOX_BG = rl.Color(0, 0, 0, 140)
 GREEN = rl.Color(0, 255, 70, 230)  # aircraft green, same as the tapes and FPV
 WHITE = rl.Color(255, 255, 255, 255)
+DIM = rl.Color(0, 255, 70, 70)  # unlit annunciator legend
+
+LEGENDS = ("GREEN LIGHT", "LEAD DEPARTING")
+CHIME = "complete"  # upstream's ding, played once by soundd
 
 
 class E2EStates:
@@ -179,10 +185,11 @@ class DriverAlertsHelper:
 
 
 class DriverAlerts:
-  """Annunciator legend in line with the driver-monitoring readout (top-centre
-  row), pulsing white/green for 3 seconds when the helper fires an alert. It
-  sits just left of centre so it never collides with the DM annunciator's own
-  text, and the two read as one caution panel."""
+  """Annunciator legends in line with the driver-monitoring readout, just left
+  of centre so they never collide with its text. Both legends stay visible but
+  unlit (dim outline) whenever the widget is allowed to draw; a firing alert
+  brightens its legend with a white/green pulse for 3 seconds and asks soundd
+  for a one-shot chime."""
 
   def __init__(self):
     self._helper = DriverAlertsHelper()
@@ -207,6 +214,7 @@ class DriverAlerts:
         self._alert_text = "GREEN LIGHT"
       else:
         self._alert_text = "LEAD DEPARTING"
+      chime.request(CHIME)
 
     if self._display_timer > 0:
       self._display_timer -= 1
@@ -215,17 +223,21 @@ class DriverAlerts:
       self._alert_frame = 0
 
   def render(self, rect: rl.Rectangle) -> None:
-    if not ui_state.driver_alerts or not self._allow_alerts or self._display_timer <= 0:
+    if not ui_state.driver_alerts or not self._allow_alerts:
       return
 
     is_pulsing = (self._alert_frame % gui_app.target_fps) < (gui_app.target_fps / 2.5)
-    color = WHITE if is_pulsing else GREEN
+    active_color = WHITE if is_pulsing else GREEN
 
-    # right-aligned against the centre gap, on the DM annunciator's line
-    measure = measure_text_cached(self._font, self._alert_text, ALERT_TEXT_SIZE, 0)
-    x = rect.x + rect.width / 2 - CENTER_GAP - measure.x
-    y = rect.y + TOP_MARGIN
-    box = rl.Rectangle(x - PAD_X, y - PAD_Y, measure.x + 2 * PAD_X, measure.y + 2 * PAD_Y)
-    rl.draw_rectangle_rec(box, BOX_BG)
-    rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
-    rl.draw_text_ex(self._font, self._alert_text, rl.Vector2(x, y), ALERT_TEXT_SIZE, 0, color)
+    # right-aligned against the centre gap, stacked from the DM annunciator's line
+    for i, text in enumerate(LEGENDS):
+      active = self._display_timer > 0 and text == self._alert_text
+      color = active_color if active else DIM
+      measure = measure_text_cached(self._font, text, ALERT_TEXT_SIZE, 0)
+      x = rect.x + rect.width / 2 - CENTER_GAP - measure.x
+      y = rect.y + TOP_MARGIN + i * ROW_STEP
+      box = rl.Rectangle(x - PAD_X, y - PAD_Y, measure.x + 2 * PAD_X, measure.y + 2 * PAD_Y)
+      if active:
+        rl.draw_rectangle_rec(box, BOX_BG)
+      rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
+      rl.draw_text_ex(self._font, text, rl.Vector2(x, y), ALERT_TEXT_SIZE, 0, color)

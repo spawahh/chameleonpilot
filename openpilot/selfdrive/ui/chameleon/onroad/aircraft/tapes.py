@@ -31,7 +31,7 @@ BOX_BG = rl.Color(0, 0, 0, 140)
 TAPE_HEIGHT = 560.0  # vertical tapes
 TAPE_WIDTH = 130.0
 EDGE_MARGIN = 50.0  # clear of the accel bar (28 px) and blind spot icons
-HEADING_WIDTH = 760.0
+HEADING_WIDTH = 1000.0
 HEADING_BOTTOM_MARGIN = 100.0  # baseline this far above the rect bottom; the readout box hangs below it
 TICK = 18.0
 THICKNESS = 3.0
@@ -128,7 +128,7 @@ class AircraftTapes:
     speed = max(0.0, v_ego * conversion)
 
     tape = VerticalTape(self._font, ticks_on_right=True, minor_step=5.0, major_step=10.0,
-                        px_per_unit=TAPE_HEIGHT / 60.0)  # +/-30 units in view; wider spacing reads better
+                        px_per_unit=TAPE_HEIGHT / 20.0)  # 20 units in view, like a real airspeed tape
     tape.draw(rect.x + EDGE_MARGIN, rect.y + rect.height / 2, speed)
 
   # --- altitude (right) ---

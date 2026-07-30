@@ -9,7 +9,9 @@ for a caution light: top-centre, under the header.
 States, escalating:
 - monitoring normally: small "MON 94%" readout in aircraft green, awareness
   from whichever policy is active (vision vs wheeltouch — the percent lives on
-  different sub-structs).
+  different sub-structs). The percent only drains on *sustained* distraction,
+  so the live cues come first: "NO FACE" in amber when the camera loses the
+  face, and the readout turns amber the moment the model calls you distracted.
 - alertLevel one: amber "ATTENTION"; two and three: red, boxed.
 - lockout (including always-on lockout): red boxed "LOCKOUT", with minutes
   remaining when the message carries them.
@@ -78,9 +80,16 @@ class DmAnnunciator:
     if dm.alertLevel == AlertLevel.one:
       return "ATTENTION", AMBER, False
 
-    # the live awareness percent lives on whichever policy is active
+    # The awareness percent sits at 100 unless distraction is *sustained*, so
+    # by itself the readout barely moves. The states that do move in real time:
+    # face lock and the instantaneous distracted flag.
     if dm.activePolicy == MonitoringPolicy.vision:
-      percent = int(dm.visionPolicyState.awarenessPercent)
+      vp = dm.visionPolicyState
+      if not vp.faceDetected:
+        return "NO FACE", AMBER, False
+      percent = int(vp.awarenessPercent)
+      if vp.isDistracted:
+        return f"MON {percent}%", AMBER, False
     else:
       percent = int(dm.wheeltouchPolicyState.awarenessPercent)
     return f"MON {percent}%", GREEN, False

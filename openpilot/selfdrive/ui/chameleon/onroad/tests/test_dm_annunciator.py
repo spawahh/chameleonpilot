@@ -15,14 +15,14 @@ class FakeFont:
 
 
 def fake_dm(lockout=False, always_on_lockout=False, minutes=0, alert_level=None, policy=None,
-            vision_percent=94, wheel_percent=61):
+            vision_percent=94, wheel_percent=61, face_detected=True, distracted=False):
   return SimpleNamespace(
     lockout=lockout,
     alwaysOnLockout=always_on_lockout,
     lockoutMinutesRemaining=minutes,
     alertLevel=alert_level if alert_level is not None else da.AlertLevel.none,
     activePolicy=policy if policy is not None else da.MonitoringPolicy.vision,
-    visionPolicyState=SimpleNamespace(awarenessPercent=vision_percent),
+    visionPolicyState=SimpleNamespace(awarenessPercent=vision_percent, faceDetected=face_detected, isDistracted=distracted),
     wheeltouchPolicyState=SimpleNamespace(awarenessPercent=wheel_percent),
   )
 
@@ -98,6 +98,29 @@ class TestDmAnnunciator(unittest.TestCase):
 
     text, _ = self._drawn()
     self.assertEqual(text, "MON 61%")
+
+  def test_no_face_shows_in_amber(self):
+    """The camera losing the face is the state a driver can actually watch move."""
+    self._render(FakeSubMaster(fake_dm(face_detected=False)))
+
+    text, color = self._drawn()
+    self.assertEqual(text, "NO FACE")
+    self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
+
+  def test_distracted_turns_the_readout_amber(self):
+    self._render(FakeSubMaster(fake_dm(distracted=True, vision_percent=88)))
+
+    text, color = self._drawn()
+    self.assertEqual(text, "MON 88%")
+    self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
+
+  def test_wheeltouch_policy_ignores_the_face(self):
+    """No camera in the loop: face state must not leak into the wheeltouch readout."""
+    self._render(FakeSubMaster(fake_dm(policy=da.MonitoringPolicy.wheeltouch, face_detected=False, wheel_percent=61)))
+
+    text, color = self._drawn()
+    self.assertEqual(text, "MON 61%")
+    self.assertEqual((color.r, color.g, color.b), (GREEN.r, GREEN.g, GREEN.b))
 
   def test_level_one_is_amber_unboxed(self):
     self._render(FakeSubMaster(fake_dm(alert_level=da.AlertLevel.one)))
