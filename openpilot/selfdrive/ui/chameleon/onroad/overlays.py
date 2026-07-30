@@ -15,7 +15,7 @@ import pyray as rl
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.dm_annunciator import DmAnnunciator
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.flight_path_vector import FlightPathVector
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.pitch_ladder import PitchLadder
-from openpilot.selfdrive.ui.chameleon.onroad.aircraft.status_legends import TempLegend, TurnLegend
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft.status_legends import EngageLegend, GpsLegend, TempLegend, TurnLegend
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.tapes import AircraftTapes
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.target_designator import TargetDesignator
 from openpilot.selfdrive.ui.chameleon.onroad.blind_spot_indicators import BlindSpotIndicators
@@ -33,7 +33,9 @@ class ChameleonOverlays:
     self._blind_spot_indicators = BlindSpotIndicators()
     self._dm_annunciator = DmAnnunciator()
     self._driver_alerts = DriverAlerts()
+    self._engage_legend = EngageLegend()
     self._flight_path_vector = FlightPathVector()
+    self._gps_legend = GpsLegend()
     self._pitch_ladder = PitchLadder()
     self._road_name = RoadName()
     self._rocket_fuel = RocketFuel()
@@ -66,6 +68,8 @@ class ChameleonOverlays:
     self._dm_annunciator.render(rect, ui_state.sm)
     self._turn_legend.render(rect, ui_state.sm)
     self._temp_legend.render(rect, ui_state.sm)
+    self._gps_legend.render(rect, ui_state.sm)
+    self._engage_legend.render(rect, ui_state.sm)
     self._aircraft_tapes.render(rect, ui_state.sm)
     self._speed_limit_sign.render(rect, ui_state.sm)
     self._road_name.render(rect, ui_state.sm)

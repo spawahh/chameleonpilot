@@ -40,7 +40,8 @@ WHITE = rl.Color(255, 255, 255, 255)
 DIM = rl.Color(0, 255, 70, 70)  # unlit annunciator legend
 
 # legend text -> its slot in the annunciator row (geometry lives in dm_annunciator)
-LEGENDS = {"GREEN LIGHT": SLOT_GREEN_LIGHT, "LEAD DEPT": SLOT_LEAD_DEPART}
+# abbreviated to fit a uniform row slot: "GREEN LIGHT" outgrew the reserve
+LEGENDS = {"GRN LIGHT": SLOT_GREEN_LIGHT, "LEAD DEPT": SLOT_LEAD_DEPART}
 CHIME = "complete"  # upstream's ding, played once by soundd
 
 
@@ -205,7 +206,7 @@ class DriverAlerts:
     if self._helper.green_light_alert or self._helper.lead_depart_alert:
       self._display_timer = int(ALERT_DISPLAY_TIME * gui_app.target_fps)
       if self._helper.green_light_alert:
-        self._alert_text = "GREEN LIGHT"
+        self._alert_text = "GRN LIGHT"
       else:
         self._alert_text = "LEAD DEPT"
       chime.request(CHIME)
