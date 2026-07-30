@@ -105,7 +105,8 @@ this is a hobby project, so treat the order as intent rather than a schedule.
 | — | Pitch ladder roll direction | Needs one deliberate look on a banked road. |
 | — | Night drive verification | The solar night trigger and the black & white video have not been watched through a full dusk. |
 | — | Dynamic Experimental Control | Undecided whether it belongs here at all. |
-| — | Subaru stop-and-go / start-stop defeat | Blocked on CAN work unrelated to this fork's UI focus. |
+| — | Subaru stop-and-go | Not blocked, just unported. sunnypilot ships it as a beta: it spoofs the stock throttle and brake-pedal messages on their way to the EyeSight camera, so it needs no openpilot longitudinal control. Which of the two variants applies depends on whether the car has an electronic or a manual parking brake. Wants a validation drive on sunnypilot before I port anything. |
+| — | Subaru auto start-stop defeat | Blocked on discovery, not on feasibility. The physical button emits nothing on any of the three buses — confirmed over a 430,000 frame capture and thirteen presses, three ways — but an aftermarket dongle defeats start-stop from the same camera connector the comma harness plugs into, so a reachable message very likely exists. It is just not the one the button sends, which is why watching button presses could never find it. Next step is to sniff the dongle. |
 
 Deliberately **not** planned: MADS, Smart Cruise Control, custom driving-model selection, and
 always-on driver monitoring. Those are the reasons sunnypilot exists; this fork is not trying to
