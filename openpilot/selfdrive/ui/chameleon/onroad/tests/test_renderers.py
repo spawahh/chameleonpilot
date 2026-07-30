@@ -38,7 +38,8 @@ class TestSeam(unittest.TestCase):
   def test_augmented_road_view_constructs_the_subclasses(self):
     import openpilot.selfdrive.ui.onroad.augmented_road_view as arv
 
-    source = open(arv.__file__, encoding="utf-8").read()
+    with open(arv.__file__, encoding="utf-8") as f:
+      source = f.read()
     self.assertIn("ChameleonModelRenderer()", source)
     self.assertIn("ChameleonHudRenderer()", source)
 

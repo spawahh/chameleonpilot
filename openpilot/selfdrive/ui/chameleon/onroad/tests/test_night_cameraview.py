@@ -30,6 +30,10 @@ class TestNightDecision(unittest.TestCase):
     self.view.shader = mock.Mock()
     self.view._night_loc = 7
     self.view._night_val = rl.ffi.new("int[1]", [0])
+    # __init__ was bypassed, so the real __del__ -> close() would hit missing
+    # attributes at GC time — an unraisable AttributeError that pytest pins on
+    # whatever test happens to be running (the source of an intermittent CI red)
+    self.view.close = lambda: None
 
   def _patch(self, patcher):
     patched = patcher.start()
@@ -90,14 +94,16 @@ class TestWiring(unittest.TestCase):
   def test_road_view_gets_the_subclass(self):
     import openpilot.selfdrive.ui.onroad.augmented_road_view as arv
 
-    source = open(arv.__file__, encoding="utf-8").read()
+    with open(arv.__file__, encoding="utf-8") as f:
+      source = f.read()
     self.assertIn("from openpilot.selfdrive.ui.chameleon.onroad.night_cameraview import NightCameraView as CameraView", source)
 
   def test_driver_camera_keeps_the_stock_base(self):
     """The driver preview must never desaturate."""
     import openpilot.selfdrive.ui.onroad.driver_camera_dialog as dcd
 
-    source = open(dcd.__file__, encoding="utf-8").read()
+    with open(dcd.__file__, encoding="utf-8") as f:
+      source = f.read()
     self.assertNotIn("night_cameraview", source)
     self.assertIn("from openpilot.selfdrive.ui.onroad.cameraview import CameraView", source)
 
