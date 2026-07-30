@@ -36,6 +36,9 @@ car. Treat it accordingly.
   an escalating ATTENTION, and a LOCKOUT box, state openpilot tracks but stock never shows.
 - **Ported from sunnypilot** — blind spot indicators, turn signal display, rainbow path, real-time
   acceleration bar, green light + lead departure alerts, and auto lane change by blinker.
+- **Aircraft tapes** — moving speed, GPS-altitude and GPS-heading scales with boxed readouts, like a
+  head-up display's. The heading hides below walking pace (GPS course, not a compass); altitude
+  appears after the first fix. Pairs with hiding the stock speed cluster.
 - **Offline map data** — pfeiferj's OSM mapd, downloaded at first run and verified against the pinned
   GitHub release digest before it can ever execute. Feeds a **speed limit sign** (US MUTCD or Vienna
   style, with the upcoming limit) and a **road name display**. Display only — nothing controls speed.
