@@ -257,7 +257,7 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
   def test_alert_latches_display_timer_and_chimes_once(self):
     alerts = self._fired_alerts()
     self.assertEqual(alerts._display_timer, int(3.0 * da.gui_app.target_fps) - 1)
-    self.assertEqual(alerts._alert_text, "GREEN LIGHT")
+    self.assertEqual(alerts._alert_text, "GRN LIGHT")
     self.chime.request.assert_called_once_with(da.CHIME)
 
   def test_active_legend_is_boxed_both_stay_visible(self):
@@ -279,8 +279,9 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
     self.assertEqual(second.y, SCREEN.y + TOP_MARGIN)  # one line, not stacked
 
     # fake measure.x = 100, so each text starts 50 left of its slot centre
-    self.assertEqual(first.x + 50, dma.slot_x(SCREEN, dma.SLOT_GREEN_LIGHT))
-    self.assertEqual(second.x + 50, dma.slot_x(SCREEN, dma.SLOT_LEAD_DEPART))
+    # rl.Vector2 is float32, so the round-trip cannot match a float64 exactly
+    self.assertAlmostEqual(first.x + 50, dma.slot_x(SCREEN, dma.SLOT_GREEN_LIGHT), places=2)
+    self.assertAlmostEqual(second.x + 50, dma.slot_x(SCREEN, dma.SLOT_LEAD_DEPART), places=2)
 
   def test_idle_legends_draw_dim_with_no_fill(self):
     alerts = DriverAlerts()

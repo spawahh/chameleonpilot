@@ -39,8 +39,13 @@ GREEN = rl.Color(0, 255, 70, 230)  # aircraft green, same as the FPV
 AMBER = rl.Color(218, 202, 37, 255)  # the pinned WARNING value
 RED = rl.Color(201, 34, 49, 255)  # the pinned DANGER value
 
-TEXT_SIZE = 44
-TOP_MARGIN = 160.0  # px below the rect top: the annunciator row; driver alert legends share this line
+# 38, not 44: seven uniform boxes at 44 need 2035 px of the 2100 px content
+# width and end up nearly touching. At 38 they are 258 px in 300 px slots,
+# which leaves a readable gap. Measured on the device with the real font.
+TEXT_SIZE = 38
+# high enough to clear the pitch ladder's upper bars (the legends used to sit
+# right on the +10 bar), low enough to stay under the road-name pill (y 4..64)
+TOP_MARGIN = 88.0
 PAD_X, PAD_Y = 24.0, 10.0
 BOX_THICKNESS = 4.0
 BOX_BG = rl.Color(0, 0, 0, 140)  # dark fill behind escalated states, same as the alert legends
@@ -59,9 +64,17 @@ RED_PERCENT = 75
 DISTRACTED_DWELL_S = 0.5
 DISTRACTED_HOLD_S = 1.0
 
-# The annunciator row: five evenly spaced slots across the top.
-SLOTS = 5
-SLOT_GREEN_LIGHT, SLOT_LEAD_DEPART, SLOT_MON, SLOT_TURN, SLOT_TEMP = range(SLOTS)
+# The annunciator row: seven evenly spaced slots across the top. Driver-alert
+# legends first, then the DM readout, then turn, then the system group.
+SLOTS = 7
+(SLOT_GREEN_LIGHT, SLOT_LEAD_DEPART, SLOT_MON, SLOT_TURN,
+ SLOT_TEMP, SLOT_GPS, SLOT_ENGAGE) = range(SLOTS)
+
+# Every legend reserves this width, so the boxes are identical and the gaps
+# read as even — unequal box widths were what made evenly-spaced slot centres
+# look irregular. It is the widest ordinary legend; an exceptional text (the
+# lockout readout) is allowed to outgrow it.
+UNIFORM_RESERVE = "ATTENTION"
 
 AlertLevel = log.DriverMonitoringState.AlertLevel
 MonitoringPolicy = log.DriverMonitoringState.MonitoringPolicy
@@ -72,15 +85,24 @@ def slot_x(rect: rl.Rectangle, slot: int) -> float:
   return rect.x + rect.width * (slot + 0.5) / SLOTS
 
 
-def draw_legend(font: rl.Font, text: str, cx: float, y: float, color: rl.Color, filled: bool = False) -> None:
-  """One boxed legend, centred on cx — the row's single drawing primitive."""
+def draw_legend(font: rl.Font, text: str, cx: float, y: float, color: rl.Color,
+                filled: bool = False, reserve: str = UNIFORM_RESERVE) -> None:
+  """One boxed legend, centred on cx — the row's single drawing primitive.
+
+  The box is held at `reserve`'s width rather than the text's, which does two
+  jobs: every legend in the row comes out the same size, and a legend whose
+  text changes (TURN gaining a direction arrow, MON counting down) never
+  resizes mid-drive — that movement is more distracting than the text is
+  useful. Text wider than the reserve still gets a box that fits it.
+  """
   measure = measure_text_cached(font, text, TEXT_SIZE, 0)
-  x = cx - measure.x / 2
-  box = rl.Rectangle(x - PAD_X, y - PAD_Y, measure.x + 2 * PAD_X, measure.y + 2 * PAD_Y)
+  inner = max(measure.x, measure_text_cached(font, reserve, TEXT_SIZE, 0).x)
+
+  box = rl.Rectangle(cx - inner / 2 - PAD_X, y - PAD_Y, inner + 2 * PAD_X, measure.y + 2 * PAD_Y)
   if filled:
     rl.draw_rectangle_rec(box, BOX_BG)
   rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
-  rl.draw_text_ex(font, text, rl.Vector2(x, y), TEXT_SIZE, 0, color)
+  rl.draw_text_ex(font, text, rl.Vector2(cx - measure.x / 2, y), TEXT_SIZE, 0, color)
 
 
 class DmAnnunciator:
@@ -124,8 +146,9 @@ class DmAnnunciator:
 
   def _state(self, dm) -> tuple[str, rl.Color, bool]:
     if dm.lockout or dm.alwaysOnLockout:
+      # short form so it still fits a row slot; "LOCKOUT 30 MIN" overflowed
       minutes = int(dm.lockoutMinutesRemaining)
-      text = f"LOCKOUT {minutes} MIN" if minutes > 0 else "LOCKOUT"
+      text = f"LOCK {minutes}M" if minutes > 0 else "LOCKOUT"
       return text, RED, True
 
     if dm.alertLevel in (AlertLevel.two, AlertLevel.three):

@@ -37,10 +37,10 @@ DESCRIPTIONS = {
     "Show an aircraft-style caution readout at the top of the onroad screen for driver monitoring: " +
     "your attention score, amber below 90 percent (or while you look away, or NO FACE if the camera lost you) and red below 75. " +
     "Escalates to an amber then red ATTENTION with openpilot, and a red LOCKOUT box when driver monitoring has locked you out. " +
-    "Also lights the row's TURN and TEMP legends. Display only — openpilot's own alerts make the sounds."
+    "Also lights the row's TURN, TEMP, GPS and ENGAGE legends. Display only — openpilot's own alerts make the sounds."
   ),
   "DriverAlerts": tr_noop(
-    "Show GREEN LIGHT and LEAD DEPT annunciator legends next to the driver monitoring readout. " +
+    "Show GRN LIGHT and LEAD DEPT annunciator legends in the top row, beside the driver monitoring readout. " +
     "They stay dim while armed, then brighten with a chime while stopped and disengaged when the light ahead turns green " +
     "(no lead car and the driving model sees an open road) or when the car in front starts to drive away."
   ),

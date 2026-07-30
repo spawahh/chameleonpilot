@@ -21,6 +21,8 @@ WIDGETS = (
   '_rocket_fuel',
   '_speed_limit_sign',
   '_target_designator',
+  '_engage_legend',
+  '_gps_legend',
   '_temp_legend',
   '_turn_legend',
   '_turn_signal_controller',
@@ -33,7 +35,8 @@ class TestChameleonOverlays(unittest.TestCase):
   def setUp(self):
     for name in ('AircraftTapes', 'BlindSpotIndicators', 'DmAnnunciator', 'DriverAlerts',
                  'FlightPathVector', 'PitchLadder', 'RoadName', 'RocketFuel', 'SpeedLimitSign',
-                 'TargetDesignator', 'TempLegend', 'TurnLegend', 'TurnSignalController'):
+                 'TargetDesignator', 'TempLegend', 'TurnLegend', 'TurnSignalController',
+                 'EngageLegend', 'GpsLegend'):
       patcher = mock.patch.object(ov, name)
       patcher.start()
       self.addCleanup(patcher.stop)

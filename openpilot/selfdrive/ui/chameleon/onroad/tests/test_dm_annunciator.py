@@ -172,7 +172,7 @@ class TestDmAnnunciator(DmAnnunciatorTestCase):
     self._render(FakeSubMaster(fake_dm(lockout=True, minutes=4, alert_level=da.AlertLevel.three)))
 
     text, color = self._drawn()
-    self.assertEqual(text, "LOCKOUT 4 MIN")
+    self.assertEqual(text, "LOCK 4M")  # short form: the long one overflowed a row slot
     self.assertEqual((color.r, color.g, color.b), (RED.r, RED.g, RED.b))
     self.fill.assert_called_once()
 
@@ -182,11 +182,12 @@ class TestDmAnnunciator(DmAnnunciatorTestCase):
     text, _ = self._drawn()
     self.assertEqual(text, "LOCKOUT")
 
-  def test_text_is_centred(self):
+  def test_text_is_centred_in_its_row_slot(self):
     self._render()
 
     x = self.text.call_args[0][2].x
-    self.assertAlmostEqual(x, SCREEN.width / 2 - 160 / 2, places=3)
+    # fake measure.x = 160; the readout owns slot SLOT_MON, not the screen centre
+    self.assertAlmostEqual(x + 80, da.slot_x(SCREEN, da.SLOT_MON), places=2)
 
 
 class TestDistractedDwell(DmAnnunciatorTestCase):
