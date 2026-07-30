@@ -5,7 +5,7 @@ from unittest import mock
 import pyray as rl
 
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft import tapes as tp
-from openpilot.selfdrive.ui.chameleon.onroad.aircraft.tapes import MIN_HEADING_SPEED, AircraftTapes, angle_diff
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft.tapes import MIN_HEADING_SPEED, AircraftTapes, VerticalTape, angle_diff
 
 SCREEN = rl.Rectangle(0, 0, 2160, 1080)
 
@@ -124,6 +124,46 @@ class TapesTestCase(unittest.TestCase):
     self.assertAlmostEqual(angle_diff(10.0, 350.0), 20.0)
     self.assertAlmostEqual(angle_diff(350.0, 10.0), -20.0)
     self.assertAlmostEqual(angle_diff(180.0, 0.0), -180.0)
+
+
+class TestTapeLabelGeometry(TapesTestCase):
+  """A tick label must stay beyond the far end of its own tick.
+
+  It did not: the measure.x offset sat on the wrong branch, so on the speed
+  tape the number's right edge was pinned past the tick and the text ran
+  backwards over the tick and into the boxed readout at the index line —
+  visible on the road as the number and the tick overlapping. The altitude
+  tape had the mirror-image fault.
+  """
+  MAJOR_TICK = tp.TICK * 1.6
+
+  def _label_spans(self):
+    # tick labels only, by font size — the boxed readout at the index line is
+    # drawn through the same call at VALUE_SIZE and is what they must clear.
+    # fake measure_text_cached gives every label a width of 60
+    return [(c[0][2].x, c[0][2].x + 60) for c in self.text.call_args_list if c[0][3] == tp.LABEL_SIZE]
+
+  def _draw(self, ticks_on_right):
+    tape = VerticalTape(FakeFont(), ticks_on_right=ticks_on_right, minor_step=5.0, major_step=10.0,
+                        px_per_unit=tp.TAPE_HEIGHT / 20.0)  # the shipping speed-tape scale
+    tape.draw(0.0, 500.0, 30.0)
+    self.assertTrue(self._label_spans(), "no tick labels drawn")
+
+  def test_right_side_labels_clear_the_ticks_and_the_readout(self):
+    self._draw(ticks_on_right=True)
+
+    edge = tp.TAPE_WIDTH  # drawn at x = 0
+    for left, _ in self._label_spans():
+      self.assertGreaterEqual(left, edge + self.MAJOR_TICK,
+                              "label runs back over the tick into the readout box")
+
+  def test_left_side_labels_clear_the_ticks_and_the_readout(self):
+    self._draw(ticks_on_right=False)
+
+    edge = 0.0  # drawn at x = 0, ticks grow leftward
+    for _, right in self._label_spans():
+      self.assertLessEqual(right, edge - self.MAJOR_TICK,
+                           "label runs back over the tick into the readout box")
 
 
 if __name__ == '__main__':

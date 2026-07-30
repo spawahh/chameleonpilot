@@ -94,6 +94,31 @@ class TestDmAnnunciator(unittest.TestCase):
     self.box.assert_called_once()  # outlined like the alert legends
     self.fill.assert_not_called()  # the dark fill is for escalations only
 
+  def test_awareness_colours_at_the_road_thresholds(self):
+    """Colour off the score itself: openpilot's own alert levels land far
+    lower (~62%/~38%), so the readout would stay green through the drain."""
+    for percent, expected, filled in ((100, GREEN, False), (da.AMBER_PERCENT, GREEN, False),
+                                      (da.AMBER_PERCENT - 1, AMBER, False), (da.RED_PERCENT, AMBER, False),
+                                      (da.RED_PERCENT - 1, RED, True), (0, RED, True)):
+      with self.subTest(percent=percent):
+        self.box.reset_mock()
+        self.fill.reset_mock()
+        self.text.reset_mock()
+        self._render(FakeSubMaster(fake_dm(vision_percent=percent)))
+
+        text, color = self._drawn()
+        self.assertEqual(text, f"MON {percent}%")
+        self.assertEqual((color.r, color.g, color.b), (expected.r, expected.g, expected.b))
+        self.assertEqual(self.fill.called, filled)
+
+  def test_wheeltouch_awareness_uses_the_same_thresholds(self):
+    self._render(FakeSubMaster(fake_dm(policy=da.MonitoringPolicy.wheeltouch,
+                                       wheel_percent=da.RED_PERCENT - 1)))
+
+    text, color = self._drawn()
+    self.assertEqual(text, f"MON {da.RED_PERCENT - 1}%")
+    self.assertEqual((color.r, color.g, color.b), (RED.r, RED.g, RED.b))
+
   def test_awareness_follows_the_active_policy(self):
     """The live percent lives on different sub-structs per policy."""
     self._render(FakeSubMaster(fake_dm(policy=da.MonitoringPolicy.wheeltouch, wheel_percent=61)))
@@ -110,18 +135,19 @@ class TestDmAnnunciator(unittest.TestCase):
     self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
 
   def test_distracted_turns_the_readout_amber(self):
-    self._render(FakeSubMaster(fake_dm(distracted=True, vision_percent=88)))
+    """At a full score, so distraction is the only thing that can colour it."""
+    self._render(FakeSubMaster(fake_dm(distracted=True, vision_percent=100)))
 
     text, color = self._drawn()
-    self.assertEqual(text, "MON 88%")
+    self.assertEqual(text, "MON 100%")
     self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
 
   def test_wheeltouch_policy_ignores_the_face(self):
     """No camera in the loop: face state must not leak into the wheeltouch readout."""
-    self._render(FakeSubMaster(fake_dm(policy=da.MonitoringPolicy.wheeltouch, face_detected=False, wheel_percent=61)))
+    self._render(FakeSubMaster(fake_dm(policy=da.MonitoringPolicy.wheeltouch, face_detected=False, wheel_percent=100)))
 
     text, color = self._drawn()
-    self.assertEqual(text, "MON 61%")
+    self.assertEqual(text, "MON 100%")
     self.assertEqual((color.r, color.g, color.b), (GREEN.r, GREEN.g, GREEN.b))
 
   def test_level_one_is_amber_outlined_not_filled(self):
