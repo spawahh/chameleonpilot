@@ -35,8 +35,8 @@ DESCRIPTIONS = {
   "DmAnnunciator": tr_noop(
     "Show an aircraft-style caution readout at the top of the onroad screen for driver monitoring: " +
     "your attention score, amber below 90 percent (or the moment you look away, or NO FACE if the camera lost you) and red below 75. " +
-    "Going amber also chimes once, as an early heads-up well before openpilot's own alert sounds. " +
-    "Escalates to an amber then red ATTENTION with openpilot, and a red LOCKOUT box when driver monitoring has locked you out."
+    "Escalates to an amber then red ATTENTION with openpilot, and a red LOCKOUT box when driver monitoring has locked you out. " +
+    "Display only — openpilot's own alerts make the sounds."
   ),
   "DriverAlerts": tr_noop(
     "Show GREEN LIGHT and LEAD DEPARTING annunciator legends next to the driver monitoring readout. " +

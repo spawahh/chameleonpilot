@@ -17,10 +17,7 @@ States, escalating:
 - lockout (including always-on lockout): red "LOCKOUT", with minutes remaining
   when the message carries them.
 
-Going amber also fires one soft chime — a caution ahead of openpilot's own
-warning, which does not sound until much lower. It is one-shot per excursion
-and goes quiet entirely once openpilot has an alert of its own up, so the two
-never talk over each other.
+This widget is silent: openpilot owns every sound driver monitoring makes.
 
 Every state is outlined in its own colour, matching the driver-alert legends
 that share this row; the escalated states (level two and up, lockout) add a
@@ -33,7 +30,6 @@ never fights the alert renderer.
 import pyray as rl
 
 from openpilot.cereal import log
-from openpilot.chameleon import chime
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -55,13 +51,6 @@ BOX_BG = rl.Color(0, 0, 0, 140)  # dark fill behind escalated states, same as th
 AMBER_PERCENT = 90
 RED_PERCENT = 75
 
-# One soft chime as the readout first goes amber — a caution ahead of the
-# warning, well before openpilot's own alert has anything to say. Re-arms only
-# after the score climbs back past REARM_PERCENT, so hovering at the boundary
-# cannot make it chatter.
-PREWARN_CHIME = "prompt"
-REARM_PERCENT = 95
-
 AlertLevel = log.DriverMonitoringState.AlertLevel
 MonitoringPolicy = log.DriverMonitoringState.MonitoringPolicy
 
@@ -69,7 +58,6 @@ MonitoringPolicy = log.DriverMonitoringState.MonitoringPolicy
 class DmAnnunciator:
   def __init__(self):
     self._font: rl.Font = gui_app.font(FontWeight.MEDIUM)
-    self._prewarned = False
 
   def render(self, rect: rl.Rectangle, sm) -> None:
     if not ui_state.dm_annunciator:
@@ -84,7 +72,6 @@ class DmAnnunciator:
 
     dm = sm['driverMonitoringState']
     text, color, filled = self._state(dm)
-    self._maybe_prewarn(dm)
 
     measure = measure_text_cached(self._font, text, TEXT_SIZE, 0)
     x = rect.x + rect.width / 2 - measure.x / 2
@@ -97,20 +84,6 @@ class DmAnnunciator:
       rl.draw_rectangle_rec(box, BOX_BG)
     rl.draw_rectangle_lines_ex(box, BOX_THICKNESS, color)
     rl.draw_text_ex(self._font, text, rl.Vector2(x, y), TEXT_SIZE, 0, color)
-
-  def _maybe_prewarn(self, dm) -> None:
-    """Chime once as the score first goes amber, then stay quiet."""
-    if dm.lockout or dm.alwaysOnLockout or dm.alertLevel != AlertLevel.none:
-      self._prewarned = True  # openpilot owns the audio from here down
-      return
-
-    percent = self._awareness_percent(dm)
-    if percent < AMBER_PERCENT:
-      if not self._prewarned:
-        chime.request(PREWARN_CHIME)
-        self._prewarned = True
-    elif percent >= REARM_PERCENT:
-      self._prewarned = False
 
   @staticmethod
   def _awareness_percent(dm) -> int:

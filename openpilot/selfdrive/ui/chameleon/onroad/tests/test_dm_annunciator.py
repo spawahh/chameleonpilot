@@ -52,7 +52,6 @@ class DmAnnunciatorTestCase(unittest.TestCase):
     self.box = self._patch(mock.patch.object(da.rl, 'draw_rectangle_lines_ex'))
     self.fill = self._patch(mock.patch.object(da.rl, 'draw_rectangle_rec'))
     self._patch(mock.patch.object(da, 'measure_text_cached', return_value=rl.Vector2(160, 44)))
-    self.chime = self._patch(mock.patch.object(da, 'chime'))
     self.ui_state = FakeUIState()
     self._patch(mock.patch.object(da, 'ui_state', self.ui_state))
 
@@ -194,65 +193,23 @@ class TestDmAnnunciator(DmAnnunciatorTestCase):
     self.assertAlmostEqual(x, SCREEN.width / 2 - 160 / 2, places=3)
 
 
-class TestPreWarningChime(DmAnnunciatorTestCase):
-  """One caution chime as the score first goes amber, ahead of openpilot's own
-  warning — and never a stream of them."""
+class TestAnnunciatorIsSilent(DmAnnunciatorTestCase):
+  """The readout is display-only: openpilot owns every driver-monitoring sound.
 
-  def setUp(self):
-    super().setUp()
-    self.widget = DmAnnunciator()  # one instance: the arm/re-arm state is per widget
+  A pre-warning chime was added here once and was not wanted — this pins the
+  widget as silent so it does not come back by accident.
+  """
 
-  def _tick(self, percent, **kwargs):
-    self.widget.render(SCREEN, FakeSubMaster(fake_dm(vision_percent=percent, **kwargs)))
+  def test_no_chime_at_any_awareness_level(self):
+    widget = DmAnnunciator()
+    with mock.patch("openpilot.chameleon.chime.request") as request:
+      for percent in (100, 95, da.AMBER_PERCENT, da.AMBER_PERCENT - 1, da.RED_PERCENT - 1, 0):
+        widget.render(SCREEN, FakeSubMaster(fake_dm(vision_percent=percent)))
 
-  def test_chimes_once_on_the_way_into_amber(self):
-    self._tick(100)
-    self.chime.request.assert_not_called()
+      request.assert_not_called()
 
-    self._tick(da.AMBER_PERCENT - 1)
-    self.chime.request.assert_called_once_with(da.PREWARN_CHIME)
-
-  def test_does_not_repeat_while_it_stays_down(self):
-    for percent in (da.AMBER_PERCENT - 1, 80, da.RED_PERCENT - 1, 10, 0):
-      self._tick(percent)
-
-    self.chime.request.assert_called_once()  # one caution for the whole excursion
-
-  def test_rearms_only_after_recovering(self):
-    self._tick(da.AMBER_PERCENT - 1)
-    self.assertEqual(self.chime.request.call_count, 1)
-
-    # back inside the amber band but below the re-arm point: still quiet
-    self._tick(da.REARM_PERCENT - 1)
-    self._tick(da.AMBER_PERCENT - 1)
-    self.assertEqual(self.chime.request.call_count, 1)
-
-    # fully recovered, then distracted again: a second caution is correct
-    self._tick(da.REARM_PERCENT)
-    self._tick(da.AMBER_PERCENT - 1)
-    self.assertEqual(self.chime.request.call_count, 2)
-
-  def test_silent_once_openpilot_has_its_own_alert(self):
-    """openpilot owns the audio from its first alert level down."""
-    for kwargs in ({'alert_level': da.AlertLevel.one}, {'alert_level': da.AlertLevel.three},
-                   {'lockout': True}, {'always_on_lockout': True}):
-      with self.subTest(**kwargs):
-        self.chime.request.reset_mock()
-        widget = DmAnnunciator()
-        widget.render(SCREEN, FakeSubMaster(fake_dm(vision_percent=0, **kwargs)))
-
-        self.chime.request.assert_not_called()
-
-  def test_no_chime_while_a_fullscreen_alert_is_up(self):
-    from openpilot.cereal import log
-    self.widget.render(SCREEN, FakeSubMaster(fake_dm(vision_percent=0),
-                                             alert_size=log.SelfdriveState.AlertSize.full))
-
-    self.chime.request.assert_not_called()
-
-  def test_prewarn_chime_is_a_known_play_once_sound(self):
-    from openpilot.chameleon.chime import CHIMES
-    self.assertIn(da.PREWARN_CHIME, CHIMES)
+  def test_module_does_not_import_the_chime_bus(self):
+    self.assertFalse(hasattr(da, "chime"))
 
 
 if __name__ == '__main__':
