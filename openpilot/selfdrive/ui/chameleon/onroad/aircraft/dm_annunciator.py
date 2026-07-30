@@ -12,14 +12,17 @@ States, escalating:
   different sub-structs). The percent only drains on *sustained* distraction,
   so the live cues come first: "NO FACE" in amber when the camera loses the
   face, and the readout turns amber the moment the model calls you distracted.
-- alertLevel one: amber "ATTENTION"; two and three: red, boxed.
-- lockout (including always-on lockout): red boxed "LOCKOUT", with minutes
-  remaining when the message carries them.
+- alertLevel one: amber "ATTENTION"; two and three: red.
+- lockout (including always-on lockout): red "LOCKOUT", with minutes remaining
+  when the message carries them.
 
-The amber/red match the theme-pinned WARNING/DANGER values as literals, the
-same approach as the target designator's urgency ramp: escalation colors are
-not themeable. Hidden while a full-screen alert is up, mirroring the DM face
-icon's own gate, so it never fights the alert renderer.
+Every state is outlined in its own colour, matching the driver-alert legends
+that share this row; the escalated states (level two and up, lockout) add a
+dark fill behind the text so they read as lit annunciators. The amber/red match
+the theme-pinned WARNING/DANGER values as literals, the same approach as the
+target designator's urgency ramp: escalation colors are not themeable. Hidden
+while a full-screen alert is up, mirroring the DM face icon's own gate, so it
+never fights the alert renderer.
 """
 import pyray as rl
 

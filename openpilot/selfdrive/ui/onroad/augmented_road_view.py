@@ -5,9 +5,8 @@ from msgq.visionipc import VisionStreamType
 from openpilot.selfdrive.ui import UI_BORDER_SIZE
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.chameleon.onroad.overlays import ChameleonOverlays
-from openpilot.selfdrive.ui.chameleon.onroad.renderers import ChameleonHudRenderer, ChameleonModelRenderer
+from openpilot.selfdrive.ui.chameleon.onroad.renderers import ChameleonDriverStateRenderer, ChameleonHudRenderer, ChameleonModelRenderer
 from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer
-from openpilot.selfdrive.ui.chameleon.onroad.renderers import ChameleonDriverStateRenderer as DriverStateRenderer
 from openpilot.selfdrive.ui.chameleon.onroad.night_cameraview import NightCameraView as CameraView
 from openpilot.selfdrive.ui.themes import ROAD_COLORS
 from openpilot.system.ui.lib.application import gui_app
@@ -50,7 +49,7 @@ class AugmentedRoadView(CameraView):
     self._hud_renderer = ChameleonHudRenderer()
     self._overlays = ChameleonOverlays()
     self.alert_renderer = AlertRenderer()
-    self.driver_state_renderer = DriverStateRenderer()
+    self.driver_state_renderer = ChameleonDriverStateRenderer()
 
   def _render(self, rect):
     # Only render when system is started to avoid invalid data access

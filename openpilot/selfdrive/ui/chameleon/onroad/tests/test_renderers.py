@@ -17,7 +17,7 @@ from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
 
 MODEL_OVERRIDES = ("_draw_lane_lines", "_draw_path", "_draw_lead_indicator")
 HUD_OVERRIDES = ("_draw_set_speed", "_draw_current_speed")
-DRIVER_STATE_OVERRIDES = ("render",)
+DRIVER_STATE_OVERRIDES = ("_render",)
 
 
 class FakeUIState:
@@ -32,13 +32,16 @@ class FakeUIState:
 
 class TestSeam(unittest.TestCase):
   def test_every_override_still_exists_upstream(self):
-    """An upstream rename must fail here, not silently un-hide an element."""
-    for name in MODEL_OVERRIDES:
-      self.assertTrue(callable(getattr(ModelRenderer, name, None)), f"ModelRenderer.{name} is gone upstream")
-    for name in HUD_OVERRIDES:
-      self.assertTrue(callable(getattr(HudRenderer, name, None)), f"HudRenderer.{name} is gone upstream")
-    for name in DRIVER_STATE_OVERRIDES:
-      self.assertTrue(callable(getattr(DriverStateRenderer, name, None)), f"DriverStateRenderer.{name} is gone upstream")
+    """An upstream rename must fail here, not silently un-hide an element.
+
+    Checks the class's OWN namespace, not getattr: getattr walks the MRO, so a
+    generic base-class method (Widget.render) satisfies it forever while the
+    override it is supposed to guard has quietly stopped being on the draw path.
+    """
+    for cls, names in ((ModelRenderer, MODEL_OVERRIDES), (HudRenderer, HUD_OVERRIDES),
+                       (DriverStateRenderer, DRIVER_STATE_OVERRIDES)):
+      for name in names:
+        self.assertTrue(callable(vars(cls).get(name)), f"{cls.__name__}.{name} is gone upstream")
 
   def test_augmented_road_view_constructs_the_subclasses(self):
     import openpilot.selfdrive.ui.onroad.augmented_road_view as arv
@@ -47,7 +50,7 @@ class TestSeam(unittest.TestCase):
       source = f.read()
     self.assertIn("ChameleonModelRenderer()", source)
     self.assertIn("ChameleonHudRenderer()", source)
-    self.assertIn("ChameleonDriverStateRenderer as DriverStateRenderer", source)
+    self.assertIn("ChameleonDriverStateRenderer()", source)
 
 
 class TestModelRendererGates(unittest.TestCase):
@@ -120,15 +123,21 @@ class TestDriverStateGate(unittest.TestCase):
     self.renderer = ChameleonDriverStateRenderer.__new__(ChameleonDriverStateRenderer)
 
   def test_face_icon_gate(self):
-    parent = mock.patch.object(DriverStateRenderer, 'render').start()
+    parent = mock.patch.object(DriverStateRenderer, '_render').start()
     self.addCleanup(mock.patch.stopall)
 
-    self.renderer.render(None)
+    self.renderer._render(None)
     parent.assert_called_once()
 
     self.ui_state.hide_driver_face = True
-    self.renderer.render(None)
+    self.renderer._render(None)
     parent.assert_called_once()  # still once: the hidden call was suppressed
+
+  def test_upstream_visibility_gate_is_not_clobbered(self):
+    """Hiding must not touch Widget.render: upstream's own set_visible gate
+    (no face during a full-screen alert, none before driverStateV2) lives there."""
+    self.assertNotIn('render', vars(ChameleonDriverStateRenderer))
+    self.assertNotIn('__init__', vars(ChameleonDriverStateRenderer))
 
 
 class TestHudRendererGates(unittest.TestCase):

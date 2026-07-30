@@ -23,7 +23,7 @@ import pyray as rl
 
 from openpilot.cereal import log
 from openpilot.chameleon import chime
-from openpilot.selfdrive.ui.chameleon.onroad.aircraft.dm_annunciator import TOP_MARGIN
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft.dm_annunciator import BOX_BG, BOX_THICKNESS, PAD_X, PAD_Y, TOP_MARGIN
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -38,9 +38,8 @@ ALERT_DISPLAY_TIME = 3.0  # s: how long the legend stays on screen
 ALERT_TEXT_SIZE = 44  # matches the DM annunciator, so the row reads as one panel
 CENTER_GAP = 250.0  # px between screen centre and the legends' right edge; clears "LOCKOUT 30 MIN"
 ROW_STEP = 84.0  # second legend row sits this far below the first
-PAD_X, PAD_Y = 24.0, 10.0
-BOX_THICKNESS = 4.0
-BOX_BG = rl.Color(0, 0, 0, 140)
+# box geometry is imported from dm_annunciator, not restated: these legends and
+# the MON readout have to line up as one panel
 GREEN = rl.Color(0, 255, 70, 230)  # aircraft green, same as the tapes and FPV
 WHITE = rl.Color(255, 255, 255, 255)
 DIM = rl.Color(0, 255, 70, 70)  # unlit annunciator legend
