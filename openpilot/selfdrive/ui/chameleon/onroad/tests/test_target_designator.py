@@ -212,10 +212,19 @@ class TestTargetDesignator(unittest.TestCase):
     self.assertIn("ft", imperial_text)
     self.assertIn("mph", imperial_text)
 
-  def test_steady_lead_shows_no_closing_rate(self):
+  def test_steady_lead_reads_plus_zero(self):
+    """The closing readout never pops in and out: a steady lead shows +00.
+
+    It used to appear only past a 0.5 m/s threshold, and the popping was a
+    distraction on the road — always-on with a fixed width keeps it calm."""
     self._render(FakeSubMaster(lead_one=FakeLead(v_rel=0.1)))
 
-    self.assertNotIn("km/h", self.text.call_args[0][1])
+    self.assertIn("+00 km/h", self.text.call_args[0][1])
+
+  def test_closing_rate_is_two_signed_digits(self):
+    self._render(FakeSubMaster(lead_one=FakeLead(d_rel=30.0, v_rel=-1.0)))  # -3.6 km/h
+
+    self.assertIn("-04 km/h", self.text.call_args[0][1])
 
 
 if __name__ == '__main__':

@@ -2,7 +2,10 @@
 Aircraft tapes: speed (left), GPS altitude (right), GPS heading (bottom).
 
 Real HUD tapes are moving scales read against a fixed index: the ticks slide,
-the current value sits in a boxed readout at the index line. Same here.
+the current value sits in a boxed readout at the index line. Same here. The
+speed tape also carries two bugs, like an airspeed tape's: a filled caret at
+the cruise setpoint and a hollow one at the posted speed limit (offline map
+data), each pinned to the tape end when it is off-scale.
 
 Data honesty, per element:
 - Speed comes from carState with upstream's own vEgoCluster latch, so the tape
@@ -35,6 +38,7 @@ HEADING_WIDTH = 1000.0
 HEADING_BOTTOM_MARGIN = 100.0  # baseline this far above the rect bottom; the readout box hangs below it
 TICK = 18.0
 THICKNESS = 3.0
+CARET = 22.0  # px: the speed bugs' triangle size
 LABEL_SIZE = 34
 VALUE_SIZE = 52
 BOX_PAD = 10.0
@@ -89,6 +93,29 @@ class VerticalTape:
     rl.draw_rectangle_lines_ex(box, 2.0, COLOR)
     rl.draw_text_ex(self._font, text, rl.Vector2(box_x + BOX_PAD, cy - measure.y / 2), VALUE_SIZE, 0, COLOR)
 
+  def draw_bug(self, x: float, cy: float, tape_value: float, bug_value: float, filled: bool) -> None:
+    """A caret marking bug_value on the scale, pinned to the tape end when
+    off-scale so an out-of-view target still shows which way it is. Sits on
+    the tick side, clear of the boxed readout on the other side.
+    Filled = the cruise setpoint, hollow = the posted speed limit."""
+    half_span = (TAPE_HEIGHT / 2) / self._px
+    edge = x + (TAPE_WIDTH if self._ticks_on_right else 0.0)
+    direction = -1.0 if self._ticks_on_right else 1.0
+
+    offset = float(np.clip(bug_value - tape_value, -half_span, half_span))
+    y = cy - offset * self._px
+    apex = rl.Vector2(edge, y)
+    base_x = edge - direction * CARET
+    v_up = rl.Vector2(base_x, y - CARET / 2)
+    v_dn = rl.Vector2(base_x, y + CARET / 2)
+
+    if filled:
+      # raylib culls clockwise triangles; the winding flips with the tape side
+      verts = (apex, v_up, v_dn) if base_x > edge else (apex, v_dn, v_up)
+      rl.draw_triangle(*verts, COLOR)
+    else:
+      rl.draw_triangle_lines(apex, v_up, v_dn, COLOR)
+
 
 def math_floor_to(value: float, step: float) -> float:
   return step * np.floor(value / step)
@@ -114,7 +141,7 @@ class AircraftTapes:
       return
 
     if sm.recv_frame['carState'] >= ui_state.started_frame:
-      self._draw_speed(rect, sm['carState'])
+      self._draw_speed(rect, sm)
 
     self._update_gps(sm)
     if self._have_fix:
@@ -123,7 +150,8 @@ class AircraftTapes:
 
   # --- speed (left) ---
 
-  def _draw_speed(self, rect: rl.Rectangle, car_state) -> None:
+  def _draw_speed(self, rect: rl.Rectangle, sm) -> None:
+    car_state = sm['carState']
     # upstream's own latch, so the tape reads what the dash reads
     self._v_ego_cluster_seen = self._v_ego_cluster_seen or car_state.vEgoCluster != 0.0
     v_ego = car_state.vEgoCluster if self._v_ego_cluster_seen else car_state.vEgo
@@ -132,7 +160,20 @@ class AircraftTapes:
 
     tape = VerticalTape(self._font, ticks_on_right=True, minor_step=5.0, major_step=10.0,
                         px_per_unit=TAPE_HEIGHT / 20.0)  # 20 units in view, like a real airspeed tape
-    tape.draw(rect.x + EDGE_MARGIN, rect.y + rect.height / 2, speed)
+    x, cy = rect.x + EDGE_MARGIN, rect.y + rect.height / 2
+    tape.draw(x, cy, speed)
+
+    # cruise setpoint bug (filled): upstream's own set-speed semantics —
+    # km/h with 0/255 sentinels, deprecated vCruise when the cluster is silent
+    set_speed = sm['controlsState'].deprecated.vCruise if car_state.vCruiseCluster == 0.0 else car_state.vCruiseCluster
+    if 0 < set_speed < 255:
+      set_shown = set_speed if ui_state.is_metric else set_speed * CV.KPH_TO_MPH
+      tape.draw_bug(x, cy, speed, set_shown, filled=True)
+
+    # posted speed limit bug (hollow), from the offline map data
+    live = sm['liveMapData']
+    if sm.recv_frame['liveMapData'] >= ui_state.started_frame and live.speedLimitValid:
+      tape.draw_bug(x, cy, speed, live.speedLimit * conversion, filled=False)
 
   # --- altitude (right) ---
 

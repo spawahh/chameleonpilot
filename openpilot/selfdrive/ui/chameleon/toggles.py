@@ -13,7 +13,8 @@ from openpilot.system.ui.lib.multilang import tr, tr_noop
 
 DESCRIPTIONS = {
   "AircraftTapes": tr_noop(
-    "Draw aircraft-style tapes: speed on the left, GPS altitude on the right, and GPS heading along the top. " +
+    "Draw aircraft-style tapes: speed on the left, GPS altitude on the right, and GPS heading along the bottom. " +
+    "The speed tape carries two bugs: a filled caret at your cruise set speed and a hollow one at the posted speed limit (needs map data). " +
     "Altitude and heading appear after the first GPS fix; the heading hides below walking pace, where GPS course means nothing. " +
     "Altitude is height above the GPS ellipsoid, which can read a little different from map elevation. " +
     "Pairs well with Hide MAX and Speed Display."
@@ -34,12 +35,12 @@ DESCRIPTIONS = {
   ),
   "DmAnnunciator": tr_noop(
     "Show an aircraft-style caution readout at the top of the onroad screen for driver monitoring: " +
-    "your attention score, amber below 90 percent (or the moment you look away, or NO FACE if the camera lost you) and red below 75. " +
+    "your attention score, amber below 90 percent (or while you look away, or NO FACE if the camera lost you) and red below 75. " +
     "Escalates to an amber then red ATTENTION with openpilot, and a red LOCKOUT box when driver monitoring has locked you out. " +
-    "Display only — openpilot's own alerts make the sounds."
+    "Also lights the row's TURN and TEMP legends. Display only — openpilot's own alerts make the sounds."
   ),
   "DriverAlerts": tr_noop(
-    "Show GREEN LIGHT and LEAD DEPARTING annunciator legends next to the driver monitoring readout. " +
+    "Show GREEN LIGHT and LEAD DEPT annunciator legends next to the driver monitoring readout. " +
     "They stay dim while armed, then brighten with a chime while stopped and disengaged when the light ahead turns green " +
     "(no lead car and the driving model sees an open road) or when the car in front starts to drive away."
   ),

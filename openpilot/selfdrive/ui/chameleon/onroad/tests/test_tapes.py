@@ -14,8 +14,8 @@ class FakeFont:
   pass
 
 
-def fake_car_state(v_ego=25.0, v_cluster=0.0):
-  return SimpleNamespace(vEgo=v_ego, vEgoCluster=v_cluster)
+def fake_car_state(v_ego=25.0, v_cluster=0.0, v_cruise=0.0):
+  return SimpleNamespace(vEgo=v_ego, vEgoCluster=v_cluster, vCruiseCluster=v_cruise)
 
 
 def fake_gps(has_fix=True, altitude=100.0, bearing=90.0):
@@ -23,11 +23,17 @@ def fake_gps(has_fix=True, altitude=100.0, bearing=90.0):
                          latitude=47.6, longitude=-122.3)
 
 
+def fake_live_map(limit=0.0, valid=False):
+  return SimpleNamespace(speedLimit=limit, speedLimitValid=valid)
+
+
 class FakeSubMaster(dict):
-  def __init__(self, car=None, gps=None, gps_updated=True, recv_frame=10):
-    super().__init__(carState=car or fake_car_state(), gpsLocation=gps or fake_gps())
+  def __init__(self, car=None, gps=None, gps_updated=True, recv_frame=10, live=None, live_frame=10):
+    super().__init__(carState=car or fake_car_state(), gpsLocation=gps or fake_gps(),
+                     controlsState=SimpleNamespace(deprecated=SimpleNamespace(vCruise=0.0)),
+                     liveMapData=live or fake_live_map())
     self.updated = {'gpsLocation': gps_updated}
-    self.recv_frame = {'carState': recv_frame}
+    self.recv_frame = {'carState': recv_frame, 'liveMapData': live_frame}
 
 
 class FakeUIState:
@@ -124,6 +130,63 @@ class TapesTestCase(unittest.TestCase):
     self.assertAlmostEqual(angle_diff(10.0, 350.0), 20.0)
     self.assertAlmostEqual(angle_diff(350.0, 10.0), -20.0)
     self.assertAlmostEqual(angle_diff(180.0, 0.0), -180.0)
+
+
+class TestSpeedBugs(TapesTestCase):
+  """The two carets on the speed tape: cruise setpoint (filled) and posted
+  speed limit (hollow), pinned to the tape end when off-scale."""
+
+  def setUp(self):
+    super().setUp()
+    self.filled = self._patch(mock.patch.object(tp.rl, 'draw_triangle'))
+    self.hollow = self._patch(mock.patch.object(tp.rl, 'draw_triangle_lines'))
+
+  def test_no_bugs_by_default(self):
+    self.tapes.render(SCREEN, FakeSubMaster())
+
+    self.filled.assert_not_called()
+    self.hollow.assert_not_called()
+
+  def test_cruise_bug_at_the_set_speed(self):
+    # 13.4 m/s = 30 mph shown; cruise 56 km/h = ~35 mph -> 5 units above centre
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0))
+    self.tapes.render(SCREEN, sm)
+
+    self.filled.assert_called_once()
+    apex = self.filled.call_args.args[0]
+    cy = SCREEN.height / 2
+    expected = cy - (56.0 * tp.CV.KPH_TO_MPH - 30.0) * (tp.TAPE_HEIGHT / 20.0)
+    self.assertAlmostEqual(apex.y, expected, delta=1.5)
+
+  def test_cruise_sentinels_draw_nothing(self):
+    for sentinel in (0.0, 255.0):
+      self.filled.reset_mock()
+      self.tapes.render(SCREEN, FakeSubMaster(car=fake_car_state(v_cruise=sentinel)))
+      self.filled.assert_not_called()
+
+  def test_speed_limit_bug_is_hollow(self):
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4), live=fake_live_map(limit=11.176, valid=True))
+    self.tapes.render(SCREEN, sm)
+
+    self.hollow.assert_called_once()
+    self.filled.assert_not_called()
+    apex = self.hollow.call_args.args[0]
+    expected = SCREEN.height / 2 - (25.0 - 30.0) * (tp.TAPE_HEIGHT / 20.0)  # 11.176 m/s = 25 mph
+    self.assertAlmostEqual(apex.y, expected, delta=1.5)
+
+  def test_invalid_speed_limit_draws_nothing(self):
+    sm = FakeSubMaster(live=fake_live_map(limit=11.176, valid=False))
+    self.tapes.render(SCREEN, sm)
+
+    self.hollow.assert_not_called()
+
+  def test_off_scale_bug_pins_to_the_tape_end(self):
+    # 30 mph shown, cruise 129 km/h = ~80 mph: far beyond the +/-10 view
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=129.0))
+    self.tapes.render(SCREEN, sm)
+
+    apex = self.filled.call_args.args[0]
+    self.assertAlmostEqual(apex.y, SCREEN.height / 2 - tp.TAPE_HEIGHT / 2, delta=0.1)
 
 
 class TestTapeLabelGeometry(TapesTestCase):

@@ -39,7 +39,6 @@ SECOND_LEAD_ALPHA = 90
 MIN_LEAD_GAP = 3.0  # m; closer than this the two vision-fused leads shadow each other
 READOUT_SIZE = 36
 READOUT_GAP = 14.0  # px between box and text
-MIN_CLOSING_RATE = 0.5  # m/s before the closing readout appears
 
 
 class TargetDesignator:
@@ -134,8 +133,9 @@ class TargetDesignator:
       closing = lead.vRel * CV.MS_TO_MPH
       unit = "mph"
 
-    if abs(lead.vRel) > MIN_CLOSING_RATE:
-      text += f"  {closing:+.0f} {unit}"
+    # always two signed digits, "+00" at no difference — the readout used to
+    # appear only past a threshold, and the popping in/out was a distraction
+    text += f"  {closing:+03.0f} {unit}"
 
     measure = measure_text_cached(self._font, text, READOUT_SIZE, 0)
     rl.draw_text_ex(self._font, text, rl.Vector2(x - measure.x / 2, top_y), READOUT_SIZE, 0, color)

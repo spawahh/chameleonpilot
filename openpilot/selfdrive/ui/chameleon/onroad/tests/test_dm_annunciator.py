@@ -138,13 +138,9 @@ class TestDmAnnunciator(DmAnnunciatorTestCase):
     self.assertEqual(text, "NO FACE")
     self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
 
-  def test_distracted_turns_the_readout_amber(self):
-    """At a full score, so distraction is the only thing that can colour it."""
-    self._render(FakeSubMaster(fake_dm(distracted=True, vision_percent=100)))
-
-    text, color = self._drawn()
-    self.assertEqual(text, "MON 100%")
-    self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
+  # the distracted -> amber behaviour lives in TestDistractedDwell: it needs
+  # sustained frames now, because the raw flag flashing single frames of amber
+  # was itself a distraction on the road
 
   def test_wheeltouch_policy_ignores_the_face(self):
     """No camera in the loop: face state must not leak into the wheeltouch readout."""
@@ -191,6 +187,41 @@ class TestDmAnnunciator(DmAnnunciatorTestCase):
 
     x = self.text.call_args[0][2].x
     self.assertAlmostEqual(x, SCREEN.width / 2 - 160 / 2, places=3)
+
+
+class TestDistractedDwell(DmAnnunciatorTestCase):
+  """The distracted cue must not flash: amber only after the raw flag holds
+  for the dwell, then held so single-frame excursions never strobe the row."""
+
+  def setUp(self):
+    super().setUp()
+    self.widget = DmAnnunciator()
+    self.fps = da.gui_app.target_fps
+    self.dwell = int(da.DISTRACTED_DWELL_S * self.fps)
+    self.hold = int(da.DISTRACTED_HOLD_S * self.fps)
+
+  def _frames(self, n, distracted):
+    for _ in range(n):
+      self.text.reset_mock()
+      self.widget.render(SCREEN, FakeSubMaster(fake_dm(distracted=distracted, vision_percent=100)))
+    return self.text.call_args[0][5]  # the last frame's colour
+
+  def test_a_brief_excursion_never_goes_amber(self):
+    color = self._frames(self.dwell - 1, distracted=True)
+    self.assertEqual((color.r, color.g, color.b), (GREEN.r, GREEN.g, GREEN.b))
+
+  def test_sustained_distraction_goes_amber(self):
+    color = self._frames(self.dwell, distracted=True)
+    self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
+
+  def test_amber_holds_instead_of_strobing(self):
+    self._frames(self.dwell, distracted=True)
+
+    color = self._frames(self.hold - 1, distracted=False)
+    self.assertEqual((color.r, color.g, color.b), (AMBER.r, AMBER.g, AMBER.b))
+
+    color = self._frames(1, distracted=False)
+    self.assertEqual((color.r, color.g, color.b), (GREEN.r, GREEN.g, GREEN.b))
 
 
 class TestAnnunciatorIsSilent(DmAnnunciatorTestCase):
