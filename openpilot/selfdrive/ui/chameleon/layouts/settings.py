@@ -44,6 +44,12 @@ THEME_DESCRIPTIONS = {
 
 BRIGHTNESS_AUTO_LABEL = tr_noop("Auto")
 
+ALERT_STYLE_DESCRIPTION = tr_noop(
+  "How a green light or a departing lead is shown. Legend brightens GRN LIGHT or LEAD DEPT in the annunciator row " +
+  "at the top of the screen. Pop-up is the original look: a large ringed circle on the right of the road view, " +
+  "shown only while the alert fires. Both draws the two together. The chime is the same either way."
+)
+
 NIGHT_MODE_LABELS = {
   "auto": tr_noop("Auto"),
   "on": tr_noop("On"),
@@ -59,9 +65,11 @@ MAP_DATA_DESCRIPTION = tr_noop(
 # claimed above", so a toggle can never quietly drift into the wrong panel. The cost
 # is that a new toggle must be named here, and a test fails if one is missed.
 THEMES_PARAMS = ("NightVideo", "RainbowMode")
+# DriverAlerts lives here, not under Stock HUD: its default look is a legend in
+# the aircraft annunciator row, so that is where someone goes looking for it.
 AIRCRAFT_PARAMS = ("AircraftTapes", "PitchLadder", "FlightPathVector", "TargetDesignator",
-                   "DmAnnunciator", "RocketFuel")
-STOCK_HUD_PARAMS = ("ShowTurnSignals", "BlindSpot", "DriverAlerts", "RoadNameDisplay", "SpeedLimitDisplay")
+                   "DmAnnunciator", "DriverAlerts", "RocketFuel")
+STOCK_HUD_PARAMS = ("ShowTurnSignals", "BlindSpot", "RoadNameDisplay", "SpeedLimitDisplay")
 HIDE_PARAMS = ("HideDriverFace", "HideDrivingPath", "HideLaneLines", "HideSpeedCluster", "HideWheelButton")
 DRIVING_PARAMS = ("AutoLaneChangeBsmDelay", "NeuralNetworkLateralControl")
 
@@ -196,7 +204,43 @@ class ChameleonAircraftLayout(ChameleonPanelBase):
 
   def __init__(self):
     super().__init__()
-    self._build(self._rows(AIRCRAFT_PARAMS))
+
+    self._alert_style = multiple_button_item(
+      lambda: tr("Green Light / Lead Alert Style"),
+      lambda: tr(ALERT_STYLE_DESCRIPTION),
+      buttons=[lambda: tr("Legend"), lambda: tr("Pop-up"), lambda: tr("Both")],
+      button_width=220,
+      callback=self._set_alert_style,
+      selected_index=self._alert_style_index(),
+      icon="warning.png",
+    )
+
+    rows = self._rows(AIRCRAFT_PARAMS)
+    # The style row sits immediately under the toggle it qualifies, rather than at
+    # the end of the panel where it would read as unrelated. If that toggle ever
+    # moves to another panel the row goes last instead of raising: an unguarded
+    # .index() here is a ValueError inside a panel constructor, i.e. a dead
+    # settings screen on the car, and the row's position is a nicety while
+    # reaching the settings at all is not.
+    split = len(rows)
+    if "DriverAlerts" in AIRCRAFT_PARAMS:
+      split = AIRCRAFT_PARAMS.index("DriverAlerts") + 1
+    self._build([*rows[:split], self._alert_style, *rows[split:]])
+
+  def _alert_style_index(self) -> int:
+    # INT-typed param: get returns an int. Clamp so a stale or hand-edited value
+    # cannot index past the three buttons.
+    value = self._params.get("DriverAlertStyle", return_default=True) or 0
+    return min(max(value, 0), 2)
+
+  def show_event(self):
+    super().show_event()
+    self._alert_style.action_item.set_selected_button(self._alert_style_index())
+
+  def _set_alert_style(self, button_index: int) -> None:
+    # button order matches AlertStyle: LEGEND=0, POPUP=1, BOTH=2
+    self._params.put("DriverAlertStyle", button_index, block=True)
+    ui_state.update_params()  # single UI process, so the next frame draws the new look
 
 
 class ChameleonStockHudLayout(ChameleonPanelBase):

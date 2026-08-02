@@ -270,6 +270,63 @@ class TestSetSpeedTag(TapesTestCase):
     self.assertLessEqual(top + height, tape_top, "the tag overlaps the top of the tape")
 
 
+class TestSpeedLimitTag(TapesTestCase):
+  """The posted limit in digits, beside the setpoint.
+
+  Why it exists: the tape holds 20 units, so a bug more than 10 from the current
+  speed pins to the tape end and stops carrying information. Measured on the car,
+  a 20 mph limit is already pinned at 30 mph — which is why the limit read as
+  missing on the road even though the caret was drawing correctly.
+  """
+  LIMIT_MS = 8.94  # 20 mph, the real value the car reported on South Trafton Street
+
+  def test_limit_tag_shows_the_posted_limit(self):
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4), live=fake_live_map(limit=self.LIMIT_MS, valid=True))
+    self.tapes.render(SCREEN, sm)
+
+    self.assertIn("LIM 20", self._texts())
+
+  def test_limit_tag_reads_when_the_caret_is_pinned_off_scale(self):
+    """The case that made this necessary: 35 mph in a 20 zone."""
+    sm = FakeSubMaster(car=fake_car_state(v_ego=15.65, v_cluster=15.65),  # 35 mph
+                       live=fake_live_map(limit=self.LIMIT_MS, valid=True))
+    self.tapes.render(SCREEN, sm)
+
+    self.assertIn("LIM 20", self._texts())
+
+  def test_no_limit_tag_without_map_data(self):
+    self.tapes.render(SCREEN, FakeSubMaster(live=fake_live_map(limit=self.LIMIT_MS, valid=False)))
+
+    self.assertFalse([t for t in self._texts() if t.startswith("LIM")])
+
+  def test_both_tags_share_one_row_without_overlapping(self):
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0),
+                       live=fake_live_map(limit=self.LIMIT_MS, valid=True))
+    self.tapes.render(SCREEN, sm)
+
+    tags = {c[0][1]: c[0][2] for c in self.text.call_args_list if c[0][1].startswith(("SET", "LIM"))}
+    self.assertEqual(set(tags), {"SET 35", "LIM 20"})
+    self.assertAlmostEqual(tags["SET 35"].y, tags["LIM 20"].y, delta=0.1)  # one row
+    # faked measure gives every string a width of 60
+    self.assertGreaterEqual(tags["LIM 20"].x, tags["SET 35"].x + 60)
+
+  def test_the_limit_tag_takes_the_row_alone_when_no_cruise_is_set(self):
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=0.0),
+                       live=fake_live_map(limit=self.LIMIT_MS, valid=True))
+    self.tapes.render(SCREEN, sm)
+
+    tags = [c[0][2].x for c in self.text.call_args_list if c[0][1] == "LIM 20"]
+    self.assertEqual(len(tags), 1)
+    self.assertAlmostEqual(tags[0], SCREEN.x + tp.EDGE_MARGIN + tp.BOX_PAD, delta=0.1)
+
+  def test_limit_tag_is_metric_when_the_ui_is(self):
+    self.ui_state.is_metric = True
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4), live=fake_live_map(limit=self.LIMIT_MS, valid=True))
+    self.tapes.render(SCREEN, sm)
+
+    self.assertIn("LIM 32", self._texts())  # 8.94 m/s = 32 km/h
+
+
 class TestTapeLabelGeometry(TapesTestCase):
   """A tick label must stay beyond the far end of its own tick.
 

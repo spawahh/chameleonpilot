@@ -72,6 +72,7 @@ class FakeSM:
 class FakeUIState:
   def __init__(self):
     self.driver_alerts = True
+    self.driver_alert_style = da.AlertStyle.LEGEND
     self.started_frame = 0
     self.sm = FakeSM()
 
@@ -257,7 +258,7 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
   def test_alert_latches_display_timer_and_chimes_once(self):
     alerts = self._fired_alerts()
     self.assertEqual(alerts._display_timer, int(3.0 * da.gui_app.target_fps) - 1)
-    self.assertEqual(alerts._alert_text, "GRN LIGHT")
+    self.assertEqual(alerts._alert_kind, da.GREEN_LIGHT)
     self.chime.request.assert_called_once_with(da.CHIME)
 
   def test_active_legend_is_boxed_both_stay_visible(self):
@@ -327,6 +328,99 @@ class TestDriverAlertsRenderer(DriverAlertsTestCase):
     self.draw_box.assert_not_called()  # no fill: nothing active any more
     self.assertEqual(self.draw_text.call_count, 2)  # but the dim legends remain
     self.chime.request.assert_called_once()  # and the chime never replayed
+
+
+class TestAlertStyle(DriverAlertsTestCase):
+  """Legend, pop-up, or both.
+
+  The pop-up was the original ported look and the legend replaced it outright,
+  which removed the choice rather than adding one — so what matters here is that
+  each style draws its own thing and nothing else, and that the default is still
+  the legend the car has been running.
+  """
+
+  def setUp(self):
+    super().setUp()
+    self.legend = self._patch(mock.patch.object(da, 'draw_legend'))
+    self.circle = self._patch(mock.patch.object(da.rl, 'draw_circle_v'))
+    self.ring = self._patch(mock.patch.object(da.rl, 'draw_ring'))
+    self.draw_text = self._patch(mock.patch.object(da.rl, 'draw_text_ex'))
+    self._patch(mock.patch.object(da, 'measure_text_cached', return_value=rl.Vector2(100, 48)))
+    self._patch(mock.patch.object(da, 'chime'))
+
+  def _firing(self, style):
+    self.ui_state.driver_alert_style = style
+    alerts = DriverAlerts()
+    with mock.patch.object(alerts._helper, 'update') as helper_update:
+      helper_update.side_effect = lambda: setattr(alerts._helper, 'green_light_alert', True)
+      alerts.update()
+    alerts._helper.green_light_alert = False
+    return alerts
+
+  def test_default_style_is_the_legend(self):
+    self.assertEqual(da.AlertStyle.LEGEND, 0, "0 is the params default, so it must mean LEGEND")
+
+  def test_legend_style_draws_no_circle(self):
+    self._firing(da.AlertStyle.LEGEND).render(SCREEN)
+
+    self.assertEqual(self.legend.call_count, 2)  # both legends, one of them lit
+    self.circle.assert_not_called()
+
+  def test_popup_style_draws_no_legend(self):
+    self._firing(da.AlertStyle.POPUP).render(SCREEN)
+
+    self.legend.assert_not_called()
+    self.circle.assert_called_once()
+    self.ring.assert_called_once()
+
+  def test_both_draws_both(self):
+    self._firing(da.AlertStyle.BOTH).render(SCREEN)
+
+    self.assertEqual(self.legend.call_count, 2)
+    self.circle.assert_called_once()
+
+  def test_popup_uses_the_original_two_line_wording(self):
+    self._firing(da.AlertStyle.POPUP).render(SCREEN)
+
+    lines = [c.args[1] for c in self.draw_text.call_args_list]
+    self.assertEqual(lines, ["GREEN", "LIGHT"])
+
+  def test_popup_draws_nothing_while_idle(self):
+    """A pop-up has no unlit state: an idle one would be a black disc on the road."""
+    self.ui_state.driver_alert_style = da.AlertStyle.POPUP
+    alerts = DriverAlerts()
+    with mock.patch.object(alerts._helper, 'update'):
+      alerts.update()
+
+    alerts.render(SCREEN)
+
+    self.circle.assert_not_called()
+    self.ring.assert_not_called()
+
+  def test_legends_stay_visible_while_idle(self):
+    """The legend style is an annunciator panel: dim when armed, bright when lit."""
+    self.ui_state.driver_alert_style = da.AlertStyle.LEGEND
+    alerts = DriverAlerts()
+    with mock.patch.object(alerts._helper, 'update'):
+      alerts.update()
+
+    alerts.render(SCREEN)
+
+    self.assertEqual(self.legend.call_count, 2)
+
+  def test_the_toggle_still_switches_everything_off(self):
+    for style in (da.AlertStyle.LEGEND, da.AlertStyle.POPUP, da.AlertStyle.BOTH):
+      with self.subTest(style=style):
+        self.legend.reset_mock()
+        self.circle.reset_mock()
+        alerts = self._firing(style)
+        self.ui_state.driver_alerts = False
+
+        alerts.render(SCREEN)
+
+        self.legend.assert_not_called()
+        self.circle.assert_not_called()
+      self.ui_state.driver_alerts = True
 
 
 if __name__ == '__main__':

@@ -7,7 +7,7 @@ import pyray as rl
 
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft import pitch_ladder as pl
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.pitch_ladder import (
-  DASHES, HORIZON_COLOR, LADDER_RANGE, LADDER_STEP, PitchLadder,
+  COLOR, DASHES, HORIZON_COLOR, LADDER_RANGE, LADDER_STEP, PitchLadder,
 )
 
 SCREEN = rl.Rectangle(0, 0, 2160, 1080)
@@ -56,9 +56,15 @@ class FakeSubMaster(dict):
 
 
 class FakeUIState:
-  def __init__(self, enabled=True, started_frame=1):
+  def __init__(self, enabled=True, started_frame=1, dm_annunciator=False, aircraft_tapes=False):
     self.pitch_ladder = enabled
     self.started_frame = started_frame
+    # The ladder fades near whatever occupies the top row and the bottom tape, so
+    # it reads both of those toggles. Off by default here: the geometry tests are
+    # about where bars land, and a fade would change the colours they match on.
+    # TestLadderFade turns them on.
+    self.dm_annunciator = dm_annunciator
+    self.aircraft_tapes = aircraft_tapes
 
 
 class FakeFont:
@@ -241,6 +247,92 @@ class TestPitchLadder(unittest.TestCase):
     self._render(FakeSubMaster(pitch=0.0), rect=rl.Rectangle(0, 0, 10, 10))
 
     self.line.assert_not_called()
+
+  def test_bars_and_labels_actually_consult_the_fade(self):
+    """The wiring, not the curve.
+
+    Every other fade test exercises the pure functions, so all of them would keep
+    passing if the fade were never called from the draw path — which is the way
+    this feature would really break. Forcing the scale to zero must silence the
+    whole ladder.
+    """
+    with mock.patch.object(pl, 'fade_scale', return_value=0.0):
+      self._render(FakeSubMaster(pitch=0.0))
+
+    self.line.assert_not_called()
+    self.text.assert_not_called()
+
+  def test_a_partial_fade_dims_what_is_drawn(self):
+    with mock.patch.object(pl, 'fade_scale', return_value=0.5):
+      self._render(FakeSubMaster(pitch=0.0))
+
+    self.assertTrue(self.line.called)
+    for call in self.line.call_args_list:
+      color = call[0][3]
+      self.assertIn(color.a, (int(COLOR.a * 0.5), int(HORIZON_COLOR.a * 0.5)))
+
+
+class TestLadderFade(unittest.TestCase):
+  """The ladder fades where the annunciator row and the heading tape live.
+
+  On the road its bars swept up behind the top row and the text sat on a green
+  bar. These pin the fade curve itself, which is the part that decides whether
+  anything pops on and off at a boundary.
+  """
+  RECT = rl.Rectangle(0, 0, 2160, 1080)
+
+  def setUp(self):
+    self.ui_state = FakeUIState(dm_annunciator=True, aircraft_tapes=True)
+    patcher = mock.patch.object(pl, 'ui_state', self.ui_state)
+    patcher.start()
+    self.addCleanup(patcher.stop)
+
+  def test_clear_of_both_bands_is_full_strength(self):
+    self.assertEqual(pl.fade_scale(self.RECT.height / 2, self.RECT), 1.0)
+
+  def test_inside_the_top_band_is_invisible(self):
+    top, _ = pl.band_edges(self.RECT)
+
+    self.assertEqual(pl.fade_scale(top - 1.0, self.RECT), 0.0)
+    self.assertEqual(pl.fade_scale(self.RECT.y, self.RECT), 0.0)
+
+  def test_inside_the_bottom_band_is_invisible(self):
+    _, bottom = pl.band_edges(self.RECT)
+
+    self.assertEqual(pl.fade_scale(bottom + 1.0, self.RECT), 0.0)
+    self.assertEqual(pl.fade_scale(self.RECT.y + self.RECT.height, self.RECT), 0.0)
+
+  def test_the_fade_is_gradual_not_a_step(self):
+    """The whole point of fading rather than clipping."""
+    top, _ = pl.band_edges(self.RECT)
+    half = pl.fade_scale(top + pl.FADE_MARGIN / 2, self.RECT)
+
+    self.assertAlmostEqual(half, 0.5, delta=0.05)
+    self.assertEqual(pl.fade_scale(top + pl.FADE_MARGIN, self.RECT), 1.0)
+
+  def test_the_top_band_sits_below_the_annunciator_row(self):
+    """It must clear the legend boxes, which is what it was colliding with."""
+    top, _ = pl.band_edges(self.RECT)
+
+    self.assertGreaterEqual(top, self.RECT.y + pl.dma.TOP_MARGIN + pl.dma.TEXT_SIZE)
+
+  def test_a_band_nobody_occupies_does_not_fade_the_ladder(self):
+    """Both rows off: the ladder must be exactly as bright as before this change."""
+    self.ui_state.dm_annunciator = False
+    self.ui_state.aircraft_tapes = False
+
+    for y in (self.RECT.y, self.RECT.height / 2, self.RECT.y + self.RECT.height):
+      self.assertEqual(pl.fade_scale(y, self.RECT), 1.0, f"faded at y={y} with nothing there")
+
+  def test_full_strength_returns_the_module_colour_itself(self):
+    """No allocation per draw in the clear, and identity comparisons still hold."""
+    self.assertIs(pl.faded(pl.COLOR, 1.0), pl.COLOR)
+
+  def test_fading_dims_alpha_and_keeps_the_hue(self):
+    dim = pl.faded(pl.COLOR, 0.25)
+
+    self.assertEqual((dim.r, dim.g, dim.b), (pl.COLOR.r, pl.COLOR.g, pl.COLOR.b))
+    self.assertEqual(dim.a, int(pl.COLOR.a * 0.25))
 
 
 if __name__ == '__main__':

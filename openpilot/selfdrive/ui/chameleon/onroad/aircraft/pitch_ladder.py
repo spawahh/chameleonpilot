@@ -22,6 +22,8 @@ import numpy as np
 import pyray as rl
 
 from openpilot.selfdrive.locationd.helpers import Pose, PoseCalibrator
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft import dm_annunciator as dma
+from openpilot.selfdrive.ui.chameleon.onroad.aircraft import tapes
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -46,6 +48,52 @@ COLOR = rl.Color(0, 255, 70, 190)
 HORIZON_COLOR = rl.Color(0, 255, 70, 230)
 LABEL_SIZE = 34
 LABEL_GAP = 12.0  # px between a bar end and its number
+
+# The ladder sweeps up and down the screen with pitch, so its bars cross whatever
+# else is drawn there — on the road that was the annunciator row and the heading
+# tape, with the text sitting on top of a green bar. Bars fade out as they
+# approach those bands instead of being clipped, so nothing blinks on and off at
+# a boundary. The edges are derived from those widgets' own constants rather than
+# copied, so moving a row moves the fade with it, and a band only exists while
+# the thing that occupies it is switched on.
+FADE_MARGIN = 90.0  # px over which a bar fades to nothing as it nears a band
+
+
+def band_edges(rect: rl.Rectangle) -> tuple[float, float]:
+  """Screen y of the bottom of the top band and the top of the bottom band.
+
+  A band that nothing occupies is pushed a full margin outside the rect, so the
+  ladder is never faded by an element that is switched off.
+  """
+  if ui_state.dm_annunciator:
+    # the legend box: TOP_MARGIN down to one line plus its two paddings
+    top = rect.y + dma.TOP_MARGIN + dma.TEXT_SIZE + 2 * dma.PAD_Y
+  else:
+    top = rect.y - FADE_MARGIN
+
+  if ui_state.aircraft_tapes:
+    # the heading tape's ticks and labels rise above its baseline
+    top_of_heading = tapes.HEADING_BOTTOM_MARGIN + tapes.TICK * 1.6 + tapes.LABEL_SIZE
+    bottom = rect.y + rect.height - top_of_heading
+  else:
+    bottom = rect.y + rect.height + FADE_MARGIN
+
+  return top, bottom
+
+
+def fade_scale(y: float, rect: rl.Rectangle) -> float:
+  """1.0 in the clear, 0.0 inside a reserved band, linear in between."""
+  top, bottom = band_edges(rect)
+  return float(np.clip(min(y - top, bottom - y) / FADE_MARGIN, 0.0, 1.0))
+
+
+def faded(color: rl.Color, scale: float) -> rl.Color:
+  """The colour, dimmed. Returns the original object untouched at full scale —
+  which is the common case, so the ladder allocates nothing per frame while it is
+  in the clear, and a caller comparing against the module colour still matches."""
+  if scale >= 1.0:
+    return color
+  return rl.Color(color.r, color.g, color.b, int(color.a * scale))
 
 
 class PitchLadder:
@@ -128,10 +176,14 @@ class PitchLadder:
     if point is None:
       return
 
+    scale = fade_scale(point[1], rect)
+    if scale <= 0.0:
+      return
+
     text = str(abs(angle))
     measure = measure_text_cached(self._font, text, LABEL_SIZE, 0)
     position = rl.Vector2(point[0] + LABEL_GAP, point[1] - measure.y / 2)
-    rl.draw_text_ex(self._font, text, position, LABEL_SIZE, 0, color)
+    rl.draw_text_ex(self._font, text, position, LABEL_SIZE, 0, faded(color, scale))
 
   def _line(self, y1: float, z1: float, y2: float, z2: float, roll: float,
             thickness: float, color: rl.Color, rect: rl.Rectangle) -> None:
@@ -140,7 +192,14 @@ class PitchLadder:
     if start is None or end is None:
       return
 
-    rl.draw_line_ex(rl.Vector2(*start), rl.Vector2(*end), thickness, color)
+    # one alpha for the whole segment, taken from whichever end is deeper into a
+    # band: a bar is near enough to horizontal that splitting it would show a
+    # gradient along a line the eye reads as one object
+    scale = min(fade_scale(start[1], rect), fade_scale(end[1], rect))
+    if scale <= 0.0:
+      return
+
+    rl.draw_line_ex(rl.Vector2(*start), rl.Vector2(*end), thickness, faded(color, scale))
 
   def _project(self, y: float, z: float, roll: float, rect: rl.Rectangle) -> tuple[float, float] | None:
     """Car space at unit distance to screen, rotated about the boresight by roll."""

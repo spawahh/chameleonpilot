@@ -6,9 +6,12 @@ See the LICENSE.md file in the root directory for more details.
 
 Ported to chameleonpilot from sunnypilot's
 sunnypilot/selfdrive/controls/lib/e2e_alerts_helper.py (detection). The
-rendering began as a port of selfdrive/ui/sunnypilot/onroad/circular_alerts.py
-and was reworked into an aircraft-style annunciator legend drawn in line with
-the driver-monitoring readout; only the detection half still follows sunnypilot.
+rendering began as a port of selfdrive/ui/sunnypilot/onroad/circular_alerts.py.
+An aircraft-style annunciator legend, drawn in line with the driver-monitoring
+readout, was added later and became the default — but it replaced the pop-up
+outright, which quietly removed a choice, so both looks now ship and
+`DriverAlertStyle` selects one or both. Only the detection half still follows
+sunnypilot.
 
 In sunnypilot the detection half runs inside the longitudinal planner and
 reaches the UI through a custom cereal field (longitudinalPlanSP.e2eAlerts).
@@ -23,11 +26,13 @@ import pyray as rl
 
 from openpilot.cereal import log
 from openpilot.chameleon import chime
+from openpilot.selfdrive.ui import UI_BORDER_SIZE
 from openpilot.selfdrive.ui.chameleon.onroad.aircraft.dm_annunciator import (
   SLOT_GREEN_LIGHT, SLOT_LEAD_DEPART, TOP_MARGIN, draw_legend, slot_x,
 )
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.ui.lib.application import gui_app, FontWeight
+from openpilot.system.ui.lib.application import gui_app, FontWeight, FONT_SCALE
+from openpilot.system.ui.lib.text_measure import measure_text_cached
 GREEN_LIGHT_X_THRESHOLD = 30  # m: model path this long means the road ahead opened up
 LEAD_DEPART_DIST_THRESHOLD = 1.0  # m: how far the lead must pull away
 TRIGGER_TIMER_THRESHOLD = 0.3  # s: the condition must hold this long
@@ -39,10 +44,34 @@ GREEN = rl.Color(0, 255, 70, 230)  # aircraft green, same as the tapes and FPV
 WHITE = rl.Color(255, 255, 255, 255)
 DIM = rl.Color(0, 255, 70, 70)  # unlit annunciator legend
 
-# legend text -> its slot in the annunciator row (geometry lives in dm_annunciator)
-# abbreviated to fit a uniform row slot: "GREEN LIGHT" outgrew the reserve
-LEGENDS = {"GRN LIGHT": SLOT_GREEN_LIGHT, "LEAD DEPT": SLOT_LEAD_DEPART}
+# The original pop-up's geometry, kept exactly as it was ported from sunnypilot's
+# circular_alerts.py — it is the OEM look, so it is not re-tuned here.
+ALERT_RADIUS = 250
+ALERT_RIGHT_MARGIN = 100
+ALERT_RING_THICKNESS = 7.5
+ALERT_TEXT_SIZE = 48
+
+GREEN_LIGHT, LEAD_DEPART = "green_light", "lead_depart"
+
+# Which alert is which, per style. The legend row wants abbreviations ("GREEN
+# LIGHT" outgrew the uniform slot reserve); the pop-up has a 500 px circle to
+# fill and uses the original two-line wording.
+LEGEND_TEXT = {GREEN_LIGHT: "GRN LIGHT", LEAD_DEPART: "LEAD DEPT"}
+POPUP_TEXT = {GREEN_LIGHT: "GREEN\nLIGHT", LEAD_DEPART: "LEAD VEHICLE\nDEPARTING"}
+LEGEND_SLOTS = {GREEN_LIGHT: SLOT_GREEN_LIGHT, LEAD_DEPART: SLOT_LEAD_DEPART}
 CHIME = "complete"  # upstream's ding, played once by soundd
+
+
+class AlertStyle:
+  """How a firing alert is shown. Values are the DriverAlertStyle param.
+
+  The pop-up was the original ported look and the annunciator legend replaced it
+  outright, which took away the choice — so it is a setting now rather than a
+  rewrite. LEGEND stays the default: it is what has been on the car.
+  """
+  LEGEND = 0
+  POPUP = 1
+  BOTH = 2
 
 
 class E2EStates:
@@ -181,10 +210,16 @@ class DriverAlertsHelper:
 
 
 class DriverAlerts:
-  """Annunciator legends in the row's first two slots, left of the
-  driver-monitoring readout. Both stay visible but unlit (dim outline) whenever
-  the widget is allowed to draw; a firing alert brightens its legend with a
-  white/green pulse for 3 seconds and asks soundd for a one-shot chime."""
+  """Green-light and lead-departure alerts, in either of two looks.
+
+  Annunciator legends (default) sit in the row's first two slots, left of the
+  driver-monitoring readout: both visible but unlit (dim outline) whenever the
+  widget may draw, and a firing alert brightens its own legend with a
+  white/green pulse for 3 seconds. The pop-up is the original ported look — a
+  500 px ringed circle on the right of the road view, drawn only while an alert
+  is firing. `DriverAlertStyle` picks one or both. Either way a firing alert
+  asks soundd for a one-shot chime, exactly once.
+  """
 
   def __init__(self):
     self._helper = DriverAlertsHelper()
@@ -192,7 +227,7 @@ class DriverAlerts:
 
     self._display_timer = 0
     self._alert_frame = 0
-    self._alert_text = ""
+    self._alert_kind = ""
     self._allow_alerts = False
 
   def update(self) -> None:
@@ -205,10 +240,7 @@ class DriverAlerts:
 
     if self._helper.green_light_alert or self._helper.lead_depart_alert:
       self._display_timer = int(ALERT_DISPLAY_TIME * gui_app.target_fps)
-      if self._helper.green_light_alert:
-        self._alert_text = "GRN LIGHT"
-      else:
-        self._alert_text = "LEAD DEPT"
+      self._alert_kind = GREEN_LIGHT if self._helper.green_light_alert else LEAD_DEPART
       chime.request(CHIME)
 
     if self._display_timer > 0:
@@ -221,10 +253,50 @@ class DriverAlerts:
     if not ui_state.driver_alerts or not self._allow_alerts:
       return
 
+    style = ui_state.driver_alert_style
+    if style in (AlertStyle.LEGEND, AlertStyle.BOTH):
+      self._render_legends(rect)
+    if style in (AlertStyle.POPUP, AlertStyle.BOTH):
+      self._render_popup(rect)
+
+  def _render_legends(self, rect: rl.Rectangle) -> None:
     is_pulsing = (self._alert_frame % gui_app.target_fps) < (gui_app.target_fps / 2.5)
     active_color = WHITE if is_pulsing else GREEN
 
-    for text, slot in LEGENDS.items():
-      active = self._display_timer > 0 and text == self._alert_text
+    for kind, slot in LEGEND_SLOTS.items():
+      active = self._display_timer > 0 and kind == self._alert_kind
       color = active_color if active else DIM
-      draw_legend(self._font, text, slot_x(rect, slot), rect.y + TOP_MARGIN, color, filled=active)
+      draw_legend(self._font, LEGEND_TEXT[kind], slot_x(rect, slot), rect.y + TOP_MARGIN,
+                  color, filled=active)
+
+  def _render_popup(self, rect: rl.Rectangle) -> None:
+    """The original look, geometry unchanged from the sunnypilot port.
+
+    Unlike the legends this draws nothing while idle — it is a pop-up, so an
+    unlit state would be a permanent black disc over the road.
+    """
+    if self._display_timer <= 0 or not self._alert_kind:
+      return
+
+    center = rl.Vector2(
+      rect.x + rect.width - ALERT_RADIUS - ALERT_RIGHT_MARGIN - (UI_BORDER_SIZE * 3),
+      rect.y + rect.height / 2 + 20,
+    )
+
+    is_pulsing = (self._alert_frame % gui_app.target_fps) < (gui_app.target_fps / 2.5)
+    ring_color = rl.Color(255, 255, 255, 75) if is_pulsing else rl.Color(0, 255, 0, 75)
+    text_color = rl.Color(255, 255, 255, 255) if is_pulsing else rl.Color(0, 255, 0, 190)
+
+    rl.draw_circle_v(center, ALERT_RADIUS, rl.Color(0, 0, 0, 190))
+    rl.draw_ring(center, ALERT_RADIUS - ALERT_RING_THICKNESS, ALERT_RADIUS + ALERT_RING_THICKNESS,
+                 0, 360, 0, ring_color)
+
+    # sunnypilot bottom-aligns the text under a 250 px image; the image is not
+    # ported, so center the text block in the circle instead
+    lines = POPUP_TEXT[self._alert_kind].split('\n')
+    current_y = center.y - (len(lines) * ALERT_TEXT_SIZE * FONT_SCALE) / 2
+    for line in lines:
+      measure = measure_text_cached(self._font, line, ALERT_TEXT_SIZE, 0)
+      rl.draw_text_ex(self._font, line, rl.Vector2(center.x - measure.x / 2, current_y),
+                      ALERT_TEXT_SIZE, 0, text_color)
+      current_y += ALERT_TEXT_SIZE * FONT_SCALE

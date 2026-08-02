@@ -39,6 +39,7 @@ TOGGLES = {
 # key returns an int, and nothing here should call int() on a string.
 VALUES = {
   "brightness_percent": "ChameleonBrightness",
+  "driver_alert_style": "DriverAlertStyle",
 }
 
 

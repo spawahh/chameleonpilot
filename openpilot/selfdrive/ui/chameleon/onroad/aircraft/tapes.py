@@ -14,10 +14,13 @@ commanded target (aviation convention for a selected value), white matches the
 face of the speed limit sign the fork already draws. Both carry a dark backing
 triangle so they read against whatever tick or label they land on.
 
-The set speed also gets a fixed "SET nn" tag above the tape, which is what a
-real primary flight display does — bug on the scale, selected-speed digits in
-the corner. That is the number that stays readable when the set speed runs off
-the end of the scale, where the caret can only pin to the tape end.
+Both bugs also get fixed digits above the tape — "SET nn" and "LIM nn" — which
+is what a real primary flight display does: bug on the scale, selected value in
+digits nearby. Those are the numbers that stay readable when a bug runs off the
+end of the 20-unit scale, where the caret can only pin to the tape end and stops
+carrying information. That is not an edge case: on a 20 mph street the posted
+limit is off-scale at any normal speed, which is why the limit looked missing on
+the road even though the caret was drawing correctly.
 
 Data honesty, per element:
 - Speed comes from carState with upstream's own vEgoCluster latch, so the tape
@@ -60,6 +63,7 @@ VALUE_SIZE = 52
 BOX_PAD = 10.0
 SET_TAG_SIZE = 44
 SET_TAG_GAP = 18.0  # between the tag's bottom and the top of the tape
+TAG_SPACING = 14.0  # between the SET and LIM tags on the row
 
 MIN_HEADING_SPEED = 3.0  # m/s; below this GPS course is noise
 ALT_SMOOTHING_S = 1.0  # glides the 1 Hz GPS steps
@@ -200,32 +204,52 @@ class AircraftTapes:
     # the setpoint wins when the two land on the same value — cruising at the
     # limit is exactly when they coincide, and the setpoint is the actionable one
     live = sm['liveMapData']
+    limit_shown = None
     if sm.recv_frame['liveMapData'] >= ui_state.started_frame and live.speedLimitValid:
-      tape.draw_bug(x, cy, speed, live.speedLimit * conversion, LIMIT_COLOR)
+      limit_shown = live.speedLimit * conversion
+      tape.draw_bug(x, cy, speed, limit_shown, LIMIT_COLOR)
 
     # cruise setpoint bug (magenta): upstream's own set-speed semantics —
     # km/h with 0/255 sentinels, deprecated vCruise when the cluster is silent
     set_speed = sm['controlsState'].deprecated.vCruise if car_state.vCruiseCluster == 0.0 else car_state.vCruiseCluster
+    set_shown = None
     if 0 < set_speed < 255:
       set_shown = set_speed if ui_state.is_metric else set_speed * CV.KPH_TO_MPH
       tape.draw_bug(x, cy, speed, set_shown, SET_COLOR)
-      self._draw_set_tag(x + TAPE_WIDTH, cy - TAPE_HEIGHT / 2 - SET_TAG_GAP, set_shown)
 
-  def _draw_set_tag(self, cx: float, bottom: float, set_shown: float) -> None:
-    """The set speed in digits, above the tape and pinned there.
+    self._draw_tags(x, cy - TAPE_HEIGHT / 2 - SET_TAG_GAP, set_shown, limit_shown)
 
-    The caret alone cannot answer "what is it set to" once the value leaves the
-    20-unit window — off-scale it can only sit at the tape end. Nothing is drawn
-    when there is no setpoint, rather than a placeholder: no cruise set is a
-    real state, not missing data.
+  def _draw_tags(self, x: float, bottom: float, set_shown: float | None, limit_shown: float | None) -> None:
+    """The setpoint and the posted limit as digits, on one row above the tape.
+
+    Both numbers need to be readable when their caret cannot show them. The tape
+    holds 20 units, so a bug more than 10 from the current speed pins to the tape
+    end and stops carrying information — and on a 20 mph street that is true at
+    any normal speed, which is why the posted limit looked missing on the road
+    even though the caret was drawing. Measured on the device: at 30 mph the
+    20 mph caret sits exactly on the tape's bottom edge.
+
+    Laid out left to right from the tape's own left edge and measured as it goes,
+    so neither tag can overlap the other whatever the digits or the font. Each is
+    drawn only when it has a value: no cruise set and no map data are real
+    states, not missing data, and a placeholder would read as a reading of zero.
     """
-    text = f"SET {int(round(set_shown))}"
-    measure = measure_text_cached(self._font, text, SET_TAG_SIZE, 0)
-    box = rl.Rectangle(cx - measure.x / 2 - BOX_PAD, bottom - measure.y - 2 * BOX_PAD,
-                       measure.x + 2 * BOX_PAD, measure.y + 2 * BOX_PAD)
-    rl.draw_rectangle_rec(box, BOX_BG)
-    rl.draw_rectangle_lines_ex(box, 2.0, SET_COLOR)
-    rl.draw_text_ex(self._font, text, rl.Vector2(cx - measure.x / 2, box.y + BOX_PAD), SET_TAG_SIZE, 0, SET_COLOR)
+    tags = []
+    if set_shown is not None:
+      tags.append((f"SET {int(round(set_shown))}", SET_COLOR))
+    if limit_shown is not None:
+      tags.append((f"LIM {int(round(limit_shown))}", LIMIT_COLOR))
+
+    left = x
+    for text, color in tags:
+      measure = measure_text_cached(self._font, text, SET_TAG_SIZE, 0)
+      box = rl.Rectangle(left, bottom - measure.y - 2 * BOX_PAD,
+                         measure.x + 2 * BOX_PAD, measure.y + 2 * BOX_PAD)
+      rl.draw_rectangle_rec(box, BOX_BG)
+      rl.draw_rectangle_lines_ex(box, 2.0, color)
+      rl.draw_text_ex(self._font, text, rl.Vector2(box.x + BOX_PAD, box.y + BOX_PAD),
+                      SET_TAG_SIZE, 0, color)
+      left = box.x + box.width + TAG_SPACING
 
   # --- altitude (right) ---
 

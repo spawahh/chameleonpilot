@@ -119,10 +119,22 @@ class TestPanelSplit(PanelTestCase):
         self.assertEqual(set(panel_cls()._toggles), set(params))
 
   def test_row_order_follows_the_param_tuple(self):
-    panel = cs.ChameleonAircraftLayout()
-    rows = [panel._toggles[p] for p in cs.AIRCRAFT_PARAMS]
+    panel = cs.ChameleonStockHudLayout()
+    rows = [panel._toggles[p] for p in cs.STOCK_HUD_PARAMS]
 
     self.assertEqual(panel._scroller._items, rows)
+
+  def test_driver_alerts_sits_with_the_aircraft_symbology(self):
+    """Its default look is a legend in the aircraft annunciator row, so that is
+    where someone goes looking for it — it used to be filed under Stock HUD."""
+    self.assertIn("DriverAlerts", cs.AIRCRAFT_PARAMS)
+    self.assertNotIn("DriverAlerts", cs.STOCK_HUD_PARAMS)
+
+  def test_the_alert_style_row_follows_the_toggle_it_qualifies(self):
+    panel = cs.ChameleonAircraftLayout()
+    items = panel._scroller._items
+
+    self.assertEqual(items[items.index(panel._toggles["DriverAlerts"]) + 1], panel._alert_style)
 
   def test_themes_leads_with_the_pickers(self):
     panel = cs.ChameleonThemesLayout()
@@ -277,6 +289,33 @@ class TestBrightnessRow(PanelTestCase):
     callback(DialogResult.CANCEL)
 
     self.assertEqual(self.params.puts, [])
+
+
+class TestAlertStyleRow(PanelTestCase):
+  def test_writes_an_int_for_each_button(self):
+    """Params.put is type-checked on this INT key, and the button order is the
+    AlertStyle values — LEGEND=0, POPUP=1, BOTH=2."""
+    panel = cs.ChameleonAircraftLayout()
+
+    for index in (0, 1, 2):
+      panel._set_alert_style(index)
+      self.assertEqual(self.params.values["DriverAlertStyle"], index)
+      self.assertIsInstance(self.params.values["DriverAlertStyle"], int)
+
+  def test_selection_refreshes_params_so_the_next_frame_draws_it(self):
+    cs.ChameleonAircraftLayout()._set_alert_style(1)
+
+    self.assertEqual(self.ui_state.param_refreshes, 1)
+
+  def test_a_stale_value_cannot_index_past_the_buttons(self):
+    self.params.values["DriverAlertStyle"] = 99
+
+    self.assertEqual(cs.ChameleonAircraftLayout()._alert_style_index(), 2)
+
+  def test_three_buttons_in_alert_style_order(self):
+    panel = cs.ChameleonAircraftLayout()
+
+    self.assertEqual(len(panel._alert_style.action_item.buttons), 3)
 
 
 class TestBsmGating(PanelTestCase):

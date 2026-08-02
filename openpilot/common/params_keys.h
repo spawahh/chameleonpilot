@@ -140,6 +140,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ChameleonChime", {CLEAR_ON_MANAGER_START, STRING}},
     {"DmAnnunciator", {PERSISTENT, BOOL}},
     {"DriverAlerts", {PERSISTENT, BOOL}},
+    {"DriverAlertStyle", {PERSISTENT, INT, "0"}},
     {"FlightPathVector", {PERSISTENT, BOOL}},
     {"HideDriverFace", {PERSISTENT, BOOL}},
     {"HideDrivingPath", {PERSISTENT, BOOL}},
