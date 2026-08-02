@@ -56,12 +56,21 @@ car. Treat it accordingly.
   The driver-monitoring readout shows your attention score and turns amber while you look away or
   when the camera loses your face — state openpilot tracks but stock never displays.
 - **Ported from sunnypilot** — blind spot indicators, turn signal display, rainbow path, real-time
-  acceleration bar, green light + lead departure alerts, and auto lane change by blinker.
+  acceleration bar, green light + lead departure alerts, and auto lane change by blinker. The
+  green-light/lead alerts come in two looks — the annunciator legend, the original ringed pop-up
+  circle, or both — selectable in settings.
+- **Screen brightness** — Auto (upstream's camera-driven behaviour, untouched) or a fixed 10–100%
+  level. A fixed level can go below the 30% floor Auto enforces while driving, which is the point:
+  a genuinely dim screen at night. Changes ease in over ten seconds; the screen still sleeps on the
+  usual timeout.
 - **Aircraft tapes** — moving speed, GPS-altitude and GPS-heading scales with boxed readouts, like a
-  head-up display's. The speed tape carries two bugs: a filled caret at your cruise set speed and a
-  hollow one at the posted speed limit, each pinning to the tape end when it is off-scale. The
-  heading hides below walking pace (GPS course, not a compass); altitude appears after the first fix.
-  Pairs with hiding the stock speed cluster.
+  head-up display's. The speed tape carries two bugs, told apart by colour the way a real airspeed
+  tape does it: a **magenta** caret at your cruise set speed and a **white** one at the posted speed
+  limit, each on a dark backing so they read over the ticks. Both values also show as fixed **`SET`
+  and `LIM` digits above the tape** — the numbers that stay readable when a bug runs off the end of
+  the scale, which on a slow street is most of the time. The heading hides below walking pace (GPS
+  course, not a compass); altitude appears after the first fix. Pairs with hiding the stock speed
+  cluster.
 - **Target designator** — aircraft-style corner brackets on the lead car with range and closing rate,
   in place of the stock chevron. Unlike the chevron it draws on stock-ACC cars too, since it is
   information rather than a control cue.
@@ -80,7 +89,8 @@ car. Treat it accordingly.
 
 - **Aircraft HUD elements** — a flight path vector (a winged circle marking where the car is actually
   travelling, with a dimmer ghost riding openpilot's planned path when the two disagree) and a pitch
-  ladder. Both default off; the ladder stays hidden until the device is calibrated. The pitch
+  ladder. Both default off; the ladder stays hidden until the device is calibrated, and fades out
+  where it would cross the annunciator row or the heading tape. The pitch
   ladder's **roll direction is still unconfirmed by eye** — treat that one element as experimental
   even by this fork's standards.
 
@@ -88,9 +98,9 @@ car. Treat it accordingly.
 
 - `master` — tracks upstream `commaai/openpilot` unmodified. Never developed on, so a rebase always
   has a clean base.
-- `themes/aircraft` — where the aircraft HUD is developed; merged into `main`.
-- `integration-full` — the branch the development device actually boots. Same content as `main`
-  without the licence and README commits.
+- `themes/aircraft` — where the aircraft HUD was developed; merged into `main`.
+- `integration-full` — a historical integration branch, kept for reference; `main` superseded it and
+  is what the development device boots.
 - `port/nnlc` — the NNLC port in isolation, kept for reference now that it is merged.
 
 ## Roadmap
