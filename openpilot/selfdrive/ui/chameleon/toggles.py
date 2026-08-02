@@ -14,7 +14,8 @@ from openpilot.system.ui.lib.multilang import tr, tr_noop
 DESCRIPTIONS = {
   "AircraftTapes": tr_noop(
     "Draw aircraft-style tapes: speed on the left, GPS altitude on the right, and GPS heading along the bottom. " +
-    "The speed tape carries two bugs: a filled caret at your cruise set speed and a hollow one at the posted speed limit (needs map data). " +
+    "The speed tape carries two bugs: a magenta caret at your cruise set speed, with the number above the tape, " +
+    "and a white one at the posted speed limit (needs map data). " +
     "Altitude and heading appear after the first GPS fix; the heading hides below walking pace, where GPS course means nothing. " +
     "Altitude is height above the GPS ellipsoid, which can read a little different from map elevation. " +
     "Pairs well with Hide MAX and Speed Display."

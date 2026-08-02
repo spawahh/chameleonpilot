@@ -50,6 +50,10 @@ class TapesTestCase(unittest.TestCase):
     self.text = self._patch(mock.patch.object(tp.rl, 'draw_text_ex'))
     self._patch(mock.patch.object(tp.rl, 'draw_rectangle_rec'))
     self._patch(mock.patch.object(tp.rl, 'draw_rectangle_lines_ex'))
+    # every raylib draw call the tapes make has to be stubbed here, not in the
+    # subclass that happens to exercise it: reaching a real one without a GL
+    # context segfaults the whole run, taking the other 245 tests with it
+    self.triangle = self._patch(mock.patch.object(tp.rl, 'draw_triangle'))
     self._patch(mock.patch.object(tp, 'measure_text_cached', return_value=rl.Vector2(60, 40)))
     self.ui_state = FakeUIState()
     self._patch(mock.patch.object(tp, 'ui_state', self.ui_state))
@@ -133,60 +137,137 @@ class TapesTestCase(unittest.TestCase):
 
 
 class TestSpeedBugs(TapesTestCase):
-  """The two carets on the speed tape: cruise setpoint (filled) and posted
-  speed limit (hollow), pinned to the tape end when off-scale."""
+  """The two carets on the speed tape: cruise setpoint (magenta) and posted
+  speed limit (white), pinned to the tape end when off-scale.
 
-  def setUp(self):
-    super().setUp()
-    self.filled = self._patch(mock.patch.object(tp.rl, 'draw_triangle'))
-    self.hollow = self._patch(mock.patch.object(tp.rl, 'draw_triangle_lines'))
+  Both are solid now and told apart by colour — a hollow green caret on green
+  ticks was the one you could not see. The carets are matched by *identity*
+  against the module colours: rl.Color is a cffi struct, so two structurally
+  equal colours are not `==`, and the constant travels through unchanged.
+  """
+
+  def _carets(self, color):
+    return [c for c in self.triangle.call_args_list if c.args[3] is color]
+
+  def _colors_in_order(self):
+    return [c.args[3] for c in self.triangle.call_args_list]
 
   def test_no_bugs_by_default(self):
     self.tapes.render(SCREEN, FakeSubMaster())
 
-    self.filled.assert_not_called()
-    self.hollow.assert_not_called()
+    self.triangle.assert_not_called()
 
   def test_cruise_bug_at_the_set_speed(self):
     # 13.4 m/s = 30 mph shown; cruise 56 km/h = ~35 mph -> 5 units above centre
     sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0))
     self.tapes.render(SCREEN, sm)
 
-    self.filled.assert_called_once()
-    apex = self.filled.call_args.args[0]
+    carets = self._carets(tp.SET_COLOR)
+    self.assertEqual(len(carets), 1)
+    apex = carets[0].args[0]
     cy = SCREEN.height / 2
     expected = cy - (56.0 * tp.CV.KPH_TO_MPH - 30.0) * (tp.TAPE_HEIGHT / 20.0)
     self.assertAlmostEqual(apex.y, expected, delta=1.5)
 
   def test_cruise_sentinels_draw_nothing(self):
     for sentinel in (0.0, 255.0):
-      self.filled.reset_mock()
+      self.triangle.reset_mock()
       self.tapes.render(SCREEN, FakeSubMaster(car=fake_car_state(v_cruise=sentinel)))
-      self.filled.assert_not_called()
+      self.triangle.assert_not_called()
 
-  def test_speed_limit_bug_is_hollow(self):
+  def test_speed_limit_bug_is_white(self):
     sm = FakeSubMaster(car=fake_car_state(v_ego=13.4), live=fake_live_map(limit=11.176, valid=True))
     self.tapes.render(SCREEN, sm)
 
-    self.hollow.assert_called_once()
-    self.filled.assert_not_called()
-    apex = self.hollow.call_args.args[0]
+    carets = self._carets(tp.LIMIT_COLOR)
+    self.assertEqual(len(carets), 1)
+    self.assertEqual(self._carets(tp.SET_COLOR), [])
+    apex = carets[0].args[0]
     expected = SCREEN.height / 2 - (25.0 - 30.0) * (tp.TAPE_HEIGHT / 20.0)  # 11.176 m/s = 25 mph
     self.assertAlmostEqual(apex.y, expected, delta=1.5)
+
+  def test_every_bug_gets_a_dark_backing_first(self):
+    """The backing is what makes a bug legible over a tick or a label."""
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0), live=fake_live_map(limit=11.176, valid=True))
+    self.tapes.render(SCREEN, sm)
+
+    colors = self._colors_in_order()
+    self.assertEqual(len(self._carets(tp.BUG_BACKING)), 2)
+    # backing, colour, backing, colour — each bug's own backing immediately under it
+    self.assertEqual(colors, [tp.BUG_BACKING, tp.LIMIT_COLOR, tp.BUG_BACKING, tp.SET_COLOR])
+
+  def test_backing_is_larger_than_the_bug(self):
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0))
+    self.tapes.render(SCREEN, sm)
+
+    def height(call):
+      return abs(call.args[1].y - call.args[2].y)
+
+    self.assertGreater(height(self._carets(tp.BUG_BACKING)[0]), height(self._carets(tp.SET_COLOR)[0]))
+
+  def test_setpoint_draws_over_the_limit(self):
+    """They coincide exactly when cruising at the posted limit; the setpoint is
+    the actionable one, so it goes down last."""
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0), live=fake_live_map(limit=11.176, valid=True))
+    self.tapes.render(SCREEN, sm)
+
+    colors = self._colors_in_order()
+    self.assertLess(colors.index(tp.LIMIT_COLOR), colors.index(tp.SET_COLOR))
 
   def test_invalid_speed_limit_draws_nothing(self):
     sm = FakeSubMaster(live=fake_live_map(limit=11.176, valid=False))
     self.tapes.render(SCREEN, sm)
 
-    self.hollow.assert_not_called()
+    self.assertEqual(self._carets(tp.LIMIT_COLOR), [])
 
   def test_off_scale_bug_pins_to_the_tape_end(self):
     # 30 mph shown, cruise 129 km/h = ~80 mph: far beyond the +/-10 view
     sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=129.0))
     self.tapes.render(SCREEN, sm)
 
-    apex = self.filled.call_args.args[0]
+    apex = self._carets(tp.SET_COLOR)[0].args[0]
     self.assertAlmostEqual(apex.y, SCREEN.height / 2 - tp.TAPE_HEIGHT / 2, delta=0.1)
+
+
+class TestSetSpeedTag(TapesTestCase):
+  """The fixed "SET nn" readout above the speed tape.
+
+  The caret alone cannot say what the cruise is set to once the value leaves the
+  20-unit window, which is the whole reason the tag exists.
+  """
+
+  def test_tag_shows_the_set_speed(self):
+    # cruise 56 km/h = 34.8 mph -> 35
+    self.tapes.render(SCREEN, FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0)))
+
+    self.assertIn("SET 35", self._texts())
+
+  def test_tag_is_metric_when_the_ui_is(self):
+    self.ui_state.is_metric = True
+    self.tapes.render(SCREEN, FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0)))
+
+    self.assertIn("SET 56", self._texts())
+
+  def test_no_tag_without_a_setpoint(self):
+    for sentinel in (0.0, 255.0):
+      self.text.reset_mock()
+      self.tapes.render(SCREEN, FakeSubMaster(car=fake_car_state(v_cruise=sentinel)))
+      self.assertNotIn("SET 0", self._texts())
+      self.assertFalse([t for t in self._texts() if t.startswith("SET")])
+
+  def test_tag_still_reads_when_the_bug_is_off_scale(self):
+    """The pinned caret cannot show the value; this is the number that can."""
+    self.tapes.render(SCREEN, FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=129.0)))
+
+    self.assertIn("SET 80", self._texts())
+
+  def test_tag_sits_clear_above_the_tape(self):
+    self.tapes.render(SCREEN, FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0)))
+
+    tag = [c for c in self.text.call_args_list if c[0][1] == "SET 35"][0]
+    top, height = tag[0][2].y, 40.0  # the faked measure_text_cached height
+    tape_top = SCREEN.height / 2 - tp.TAPE_HEIGHT / 2
+    self.assertLessEqual(top + height, tape_top, "the tag overlaps the top of the tape")
 
 
 class TestTapeLabelGeometry(TapesTestCase):

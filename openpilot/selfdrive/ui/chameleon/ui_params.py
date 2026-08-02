@@ -34,8 +34,17 @@ TOGGLES = {
   "turn_signals": "ShowTurnSignals",
 }
 
+# The same mapping for the fork's non-bool settings. Params is type-checked, so
+# `get` hands back the deserialized value for the key's declared type — an INT
+# key returns an int, and nothing here should call int() on a string.
+VALUES = {
+  "brightness_percent": "ChameleonBrightness",
+}
+
 
 def refresh(state, params) -> None:
-  """Read every fork toggle onto `state`. Call from both UIState param sites."""
+  """Read every fork setting onto `state`. Call from both UIState param sites."""
   for attr, key in TOGGLES.items():
     setattr(state, attr, params.get_bool(key))
+  for attr, key in VALUES.items():
+    setattr(state, attr, params.get(key, return_default=True) or 0)

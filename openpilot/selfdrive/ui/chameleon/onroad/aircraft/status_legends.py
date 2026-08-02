@@ -15,8 +15,9 @@ fill the row out:
   openpilot refuses to engage). The amber/red are the theme-pinned
   WARNING/DANGER values, same rule as the rest of the row: escalation colors
   are not themeable.
-- GPS (slot 5): green on a good fix, amber on a degraded one, dim with none —
-  the honest answer to "can I trust the tapes and the speed limit right now".
+- GPS (slot 5): green on a live fix, amber on a stale or degraded one, dim with
+  none — the honest answer to "can I trust the tapes and the speed limit right
+  now".
 - ENGAGE (slot 6): green engaged, amber engageable, dim otherwise.
 
 All ride the DmAnnunciator toggle — they are parts of the annunciator row, not
@@ -94,9 +95,41 @@ class TempLegend:
     draw_legend(self._font, "TEMP", slot_x(rect, SLOT_TEMP), rect.y + TOP_MARGIN, color, filled)
 
 
+def gps_color(sm) -> rl.Color:
+  """Colour for the GPS legend: dim with no fix, amber when the fix cannot be
+  trusted, green when it can.
+
+  ⚠️ `horizontalAccuracy` is written by **ubloxd only**. On a comma 3X the
+  position comes from `qcomgpsd`, which fills latitude/longitude/altitude,
+  bearing, `verticalAccuracy`, `bearingAccuracyDeg`, `speedAccuracy` and
+  `hasFix` — and never touches `horizontalAccuracy`, so it stays at 0.0
+  forever. Treating that 0.0 as "accuracy not reported, therefore degraded"
+  pinned this legend amber for every drive on the only hardware the fork runs
+  on. An unreported field is **no evidence**, not bad news: it falls through to
+  the fix's own verdict.
+
+  The amber that does fire on a 3X is staleness. `gpsLocation` is declared at
+  1 Hz in `services.py`, so `sm.alive` goes false when the fixes stop arriving
+  (tunnel, urban canyon, dead antenna) while `hasFix` still reports the last
+  one. That is the state worth a caution: a position that looks valid and is
+  no longer being updated.
+
+  Thresholds are not invented here — the only comparison is against a reported
+  accuracy in the units cereal documents for it (metres).
+  """
+  gps = sm['gpsLocation']
+  if not gps.hasFix:
+    return DIM
+  if not sm.alive['gpsLocation']:
+    return AMBER  # holding a fix that is no longer being refreshed
+  if gps.horizontalAccuracy > GPS_GOOD_ACCURACY:
+    return AMBER  # ublox only: a fix, but not one to navigate by
+  return GREEN
+
+
 class GpsLegend:
   """Whether the tapes, road name and speed limits can be trusted right now:
-  green on a good fix, amber on a degraded one, dim with no fix at all."""
+  green on a live fix, amber on a stale or degraded one, dim with none."""
 
   def __init__(self):
     self._font: rl.Font = gui_app.font(FontWeight.MEDIUM)
@@ -105,15 +138,7 @@ class GpsLegend:
     if _row_hidden(sm):
       return
 
-    gps = sm['gpsLocation']
-    if not gps.hasFix:
-      color = DIM
-    elif gps.horizontalAccuracy > GPS_GOOD_ACCURACY or gps.horizontalAccuracy <= 0.0:
-      color = AMBER  # fix, but not one to navigate by
-    else:
-      color = GREEN
-
-    draw_legend(self._font, "GPS", slot_x(rect, SLOT_GPS), rect.y + TOP_MARGIN, color)
+    draw_legend(self._font, "GPS", slot_x(rect, SLOT_GPS), rect.y + TOP_MARGIN, gps_color(sm))
 
 
 class EngageLegend:

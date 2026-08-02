@@ -3,9 +3,21 @@ Aircraft tapes: speed (left), GPS altitude (right), GPS heading (bottom).
 
 Real HUD tapes are moving scales read against a fixed index: the ticks slide,
 the current value sits in a boxed readout at the index line. Same here. The
-speed tape also carries two bugs, like an airspeed tape's: a filled caret at
-the cruise setpoint and a hollow one at the posted speed limit (offline map
+speed tape also carries two bugs, like an airspeed tape's: a magenta caret at
+the cruise setpoint and a white one at the posted speed limit (offline map
 data), each pinned to the tape end when it is off-scale.
+
+The bugs are told apart by colour, not by fill. A hollow green caret on green
+ticks was the thing you could not see, and "filled or not" is a poor way to
+distinguish two markers that often sit a few pixels apart: magenta is the
+commanded target (aviation convention for a selected value), white matches the
+face of the speed limit sign the fork already draws. Both carry a dark backing
+triangle so they read against whatever tick or label they land on.
+
+The set speed also gets a fixed "SET nn" tag above the tape, which is what a
+real primary flight display does — bug on the scale, selected-speed digits in
+the corner. That is the number that stays readable when the set speed runs off
+the end of the scale, where the caret can only pin to the tape end.
 
 Data honesty, per element:
 - Speed comes from carState with upstream's own vEgoCluster latch, so the tape
@@ -30,6 +42,9 @@ from openpilot.system.ui.lib.text_measure import measure_text_cached
 COLOR = rl.Color(0, 255, 70, 230)  # aircraft green, same as the FPV
 DIM = rl.Color(0, 255, 70, 140)
 BOX_BG = rl.Color(0, 0, 0, 140)
+SET_COLOR = rl.Color(255, 80, 255, 255)  # magenta: the commanded target
+LIMIT_COLOR = rl.Color(255, 255, 255, 255)  # white: the speed limit sign's face
+BUG_BACKING = rl.Color(0, 0, 0, 200)  # dark triangle behind a bug, for contrast
 
 TAPE_HEIGHT = 560.0  # vertical tapes
 TAPE_WIDTH = 130.0
@@ -38,10 +53,13 @@ HEADING_WIDTH = 1000.0
 HEADING_BOTTOM_MARGIN = 100.0  # baseline this far above the rect bottom; the readout box hangs below it
 TICK = 18.0
 THICKNESS = 3.0
-CARET = 22.0  # px: the speed bugs' triangle size
+CARET = 30.0  # px: the speed bugs' triangle size
+BUG_BACKING_PAD = 5.0  # px the backing triangle grows past the bug on every side
 LABEL_SIZE = 34
 VALUE_SIZE = 52
 BOX_PAD = 10.0
+SET_TAG_SIZE = 44
+SET_TAG_GAP = 18.0  # between the tag's bottom and the top of the tape
 
 MIN_HEADING_SPEED = 3.0  # m/s; below this GPS course is noise
 ALT_SMOOTHING_S = 1.0  # glides the 1 Hz GPS steps
@@ -93,28 +111,43 @@ class VerticalTape:
     rl.draw_rectangle_lines_ex(box, 2.0, COLOR)
     rl.draw_text_ex(self._font, text, rl.Vector2(box_x + BOX_PAD, cy - measure.y / 2), VALUE_SIZE, 0, COLOR)
 
-  def draw_bug(self, x: float, cy: float, tape_value: float, bug_value: float, filled: bool) -> None:
+  def draw_bug(self, x: float, cy: float, tape_value: float, bug_value: float, color: rl.Color) -> None:
     """A caret marking bug_value on the scale, pinned to the tape end when
     off-scale so an out-of-view target still shows which way it is. Sits on
     the tick side, clear of the boxed readout on the other side.
-    Filled = the cruise setpoint, hollow = the posted speed limit."""
+
+    Bugs are told apart by colour (magenta setpoint, white posted limit), so
+    both are solid: a hollow caret disappears into the ticks it sits on. A
+    slightly larger dark triangle goes down first, which keeps the bug legible
+    wherever on the scale it lands.
+    """
     half_span = (TAPE_HEIGHT / 2) / self._px
     edge = x + (TAPE_WIDTH if self._ticks_on_right else 0.0)
     direction = -1.0 if self._ticks_on_right else 1.0
 
     offset = float(np.clip(bug_value - tape_value, -half_span, half_span))
     y = cy - offset * self._px
-    apex = rl.Vector2(edge, y)
-    base_x = edge - direction * CARET
-    v_up = rl.Vector2(base_x, y - CARET / 2)
-    v_dn = rl.Vector2(base_x, y + CARET / 2)
 
-    if filled:
-      # raylib culls clockwise triangles; the winding flips with the tape side
-      verts = (apex, v_up, v_dn) if base_x > edge else (apex, v_dn, v_up)
-      rl.draw_triangle(*verts, COLOR)
-    else:
-      rl.draw_triangle_lines(apex, v_up, v_dn, COLOR)
+    self._draw_caret(edge, y, direction, CARET + 2 * BUG_BACKING_PAD, BUG_BACKING)
+    self._draw_caret(edge, y, direction, CARET, color)
+
+  @staticmethod
+  def _draw_caret(edge: float, y: float, direction: float, size: float, color: rl.Color) -> None:
+    """One solid caret, apex on the tape line, body over the tick side.
+
+    An oversized caret (the backing) also steps its apex back across the line,
+    so the tip gets a margin rather than meeting the coloured tip exactly; the
+    few pixels it pokes past the line hide under the line's own stroke.
+    """
+    overhang = (size - CARET) / 2
+    apex = rl.Vector2(edge + direction * overhang, y)
+    base_x = edge - direction * size
+    v_up = rl.Vector2(base_x, y - size / 2)
+    v_dn = rl.Vector2(base_x, y + size / 2)
+
+    # raylib culls clockwise triangles; the winding flips with the tape side
+    verts = (apex, v_up, v_dn) if base_x > edge else (apex, v_dn, v_up)
+    rl.draw_triangle(*verts, color)
 
 
 def math_floor_to(value: float, step: float) -> float:
@@ -163,17 +196,36 @@ class AircraftTapes:
     x, cy = rect.x + EDGE_MARGIN, rect.y + rect.height / 2
     tape.draw(x, cy, speed)
 
-    # cruise setpoint bug (filled): upstream's own set-speed semantics —
+    # posted speed limit bug (white), from the offline map data. Drawn first so
+    # the setpoint wins when the two land on the same value — cruising at the
+    # limit is exactly when they coincide, and the setpoint is the actionable one
+    live = sm['liveMapData']
+    if sm.recv_frame['liveMapData'] >= ui_state.started_frame and live.speedLimitValid:
+      tape.draw_bug(x, cy, speed, live.speedLimit * conversion, LIMIT_COLOR)
+
+    # cruise setpoint bug (magenta): upstream's own set-speed semantics —
     # km/h with 0/255 sentinels, deprecated vCruise when the cluster is silent
     set_speed = sm['controlsState'].deprecated.vCruise if car_state.vCruiseCluster == 0.0 else car_state.vCruiseCluster
     if 0 < set_speed < 255:
       set_shown = set_speed if ui_state.is_metric else set_speed * CV.KPH_TO_MPH
-      tape.draw_bug(x, cy, speed, set_shown, filled=True)
+      tape.draw_bug(x, cy, speed, set_shown, SET_COLOR)
+      self._draw_set_tag(x + TAPE_WIDTH, cy - TAPE_HEIGHT / 2 - SET_TAG_GAP, set_shown)
 
-    # posted speed limit bug (hollow), from the offline map data
-    live = sm['liveMapData']
-    if sm.recv_frame['liveMapData'] >= ui_state.started_frame and live.speedLimitValid:
-      tape.draw_bug(x, cy, speed, live.speedLimit * conversion, filled=False)
+  def _draw_set_tag(self, cx: float, bottom: float, set_shown: float) -> None:
+    """The set speed in digits, above the tape and pinned there.
+
+    The caret alone cannot answer "what is it set to" once the value leaves the
+    20-unit window — off-scale it can only sit at the tape end. Nothing is drawn
+    when there is no setpoint, rather than a placeholder: no cruise set is a
+    real state, not missing data.
+    """
+    text = f"SET {int(round(set_shown))}"
+    measure = measure_text_cached(self._font, text, SET_TAG_SIZE, 0)
+    box = rl.Rectangle(cx - measure.x / 2 - BOX_PAD, bottom - measure.y - 2 * BOX_PAD,
+                       measure.x + 2 * BOX_PAD, measure.y + 2 * BOX_PAD)
+    rl.draw_rectangle_rec(box, BOX_BG)
+    rl.draw_rectangle_lines_ex(box, 2.0, SET_COLOR)
+    rl.draw_text_ex(self._font, text, rl.Vector2(cx - measure.x / 2, box.y + BOX_PAD), SET_TAG_SIZE, 0, SET_COLOR)
 
   # --- altitude (right) ---
 

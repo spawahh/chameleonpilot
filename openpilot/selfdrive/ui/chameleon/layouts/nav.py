@@ -51,12 +51,19 @@ from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import LineSeparator, Scroller
 
-# Matches upstream's own sidebar metrics so the rows land where they always did:
-# buttons inset 50 px, 100 px of clear space on the right, label right-aligned.
+# Upstream's own sidebar metrics, with one deviation: it reserves 100 px of
+# clear space to the right of the label (NAV_RIGHT_PAD 150 = 50 left inset +
+# 100 right), which the fork cannot afford. Upstream's longest panel name is
+# nine narrow characters and it has no icon column to share the row with; the
+# fork's names are longer and start 82 px in. Trimming the right margin to
+# 40 px is what keeps every label at upstream's 65 px type size instead of
+# shrinking the whole list to fit "Stock HUD".
 NAV_LEFT_PAD = 50
-NAV_RIGHT_PAD = 150
+NAV_RIGHT_PAD = 90
 NAV_LABEL_SIZE = 65
+NAV_MIN_LABEL_SIZE = 44  # floor for the auto-fit, well past any name in the list
 NAV_ICON_SIZE = 70
+NAV_ICON_GAP = 12  # clear space between the icon and the label's left edge
 CLOSE_BTN_TOP = 60
 NAV_TOP_GAP = 40  # 60 + 200 + 40 puts the first row at y + 300, where upstream starts it
 GROUP_DIVIDER_HEIGHT = 48  # LineSeparator draws at its top edge, so the rest is breathing room
@@ -104,11 +111,27 @@ class NavButton(Widget):
       rl.draw_texture_v(texture, position, color)
 
     name = tr(self._panel_info.name)
-    measure = measure_text_cached(self._host.nav_font, name, NAV_LABEL_SIZE)
-    position = rl.Vector2(rect.x + rect.width - measure.x, rect.y + (rect.height - measure.y) / 2)
-    rl.draw_text_ex(self._host.nav_font, name, position, NAV_LABEL_SIZE, 0, color)
+    size = self._host.nav_label_size
+    measure = measure_text_cached(self._host.nav_font, name, size)
+    # right-aligned, so a label grows leftward — into the icon, on a row that has
+    # one. The host sizes the type so this does not happen; the clamp is what
+    # makes it impossible rather than unlikely, at any font or translation.
+    label_left = rect.x + rect.width - measure.x
+    if self._icon:
+      label_left = max(label_left, rect.x + NAV_ICON_SIZE + NAV_ICON_GAP)
+    rl.draw_text_ex(self._host.nav_font, name, rl.Vector2(label_left, rect.y + (rect.height - measure.y) / 2),
+                    size, 0, color)
 
     self._panel_info.button_rect = rect
+
+  @property
+  def label_text(self) -> str:
+    return tr(self._panel_info.name)
+
+  @property
+  def label_width_available(self) -> float:
+    """Room the label has before it would reach the icon."""
+    return self.rect.width - (NAV_ICON_SIZE + NAV_ICON_GAP if self._icon else 0)
 
 
 class ChameleonSettingsLayout(SettingsLayout):
@@ -119,7 +142,9 @@ class ChameleonSettingsLayout(SettingsLayout):
 
     fork_panels: dict[IntEnum, PanelInfo] = {
       ChameleonPanel.THEMES: ChameleonPanelInfo(tr_noop("Themes"), ChameleonThemesLayout(), icon="settings.png"),
-      ChameleonPanel.AIRCRAFT: ChameleonPanelInfo(tr_noop("Aircraft HUD"), ChameleonAircraftLayout(), icon="calibration.png"),
+      # "Aircraft HUD" was the longest name in the sidebar by a wide margin and
+      # the "HUD" said nothing the panel's own contents do not
+      ChameleonPanel.AIRCRAFT: ChameleonPanelInfo(tr_noop("Aircraft"), ChameleonAircraftLayout(), icon="calibration.png"),
       ChameleonPanel.STOCK_HUD: ChameleonPanelInfo(tr_noop("Stock HUD"), ChameleonStockHudLayout(), icon="road.png"),
       ChameleonPanel.HIDE: ChameleonPanelInfo(tr_noop("Hide"), ChameleonHideLayout(), icon="eye_closed.png"),
       ChameleonPanel.DRIVING: ChameleonPanelInfo(tr_noop("Driving"), ChameleonDrivingLayout(), icon="chffr_wheel.png"),
@@ -134,6 +159,8 @@ class ChameleonSettingsLayout(SettingsLayout):
       panels[panel_type] = panel_info
     self._panels = panels
 
+    self._nav_label_size = NAV_LABEL_SIZE
+    self._nav_buttons: list[NavButton] = []
     self._nav_scroller = Scroller([], spacing=0, line_separator=False, pad_end=False)
     for panel_type, panel_info in self._panels.items():
       if panel_type == PanelType.DEVICE:
@@ -141,6 +168,7 @@ class ChameleonSettingsLayout(SettingsLayout):
       button = NavButton(self, panel_type, panel_info)
       button.rect.width = SIDEBAR_WIDTH - NAV_RIGHT_PAD
       button.rect.height = NAV_BTN_HEIGHT
+      self._nav_buttons.append(button)
       self._nav_scroller.add_widget(button)
 
   @property
@@ -151,9 +179,36 @@ class ChameleonSettingsLayout(SettingsLayout):
   def nav_font(self):
     return self._font_medium
 
+  @property
+  def nav_label_size(self) -> int:
+    return self._nav_label_size
+
+  def _fit_nav_label_size(self) -> int:
+    """One type size for the whole sidebar: the largest at which every label
+    clears its icon.
+
+    Sizing only the rows that overflow would leave the list in mixed sizes, and
+    unequal type on evenly spaced rows reads as a mistake — the same lesson the
+    annunciator row's uniform boxes came from. So the worst row sets the size
+    for all of them.
+
+    Measured rather than hand-tuned: the real font metrics are only knowable on
+    the device, a translation can change every width, and the fork already lost
+    a round to a label geometry guess. Measured every frame because the font
+    atlas does not exist at construction time; `measure_text_cached` makes each
+    later frame a dict hit.
+    """
+    size = NAV_LABEL_SIZE
+    for button in self._nav_buttons:
+      available = button.label_width_available
+      while size > NAV_MIN_LABEL_SIZE and measure_text_cached(self._font_medium, button.label_text, size).x > available:
+        size -= 1
+    return size
+
   def _draw_sidebar(self, rect: rl.Rectangle) -> None:
     rl.draw_rectangle_rec(rect, SIDEBAR_COLOR)
     self._draw_close_button(rect)
+    self._nav_label_size = self._fit_nav_label_size()
 
     nav_top = self._close_btn_rect.y + self._close_btn_rect.height + NAV_TOP_GAP
     nav_rect = rl.Rectangle(rect.x + NAV_LEFT_PAD, nav_top, rect.width - NAV_LEFT_PAD, rect.y + rect.height - nav_top)

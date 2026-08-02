@@ -36,7 +36,7 @@ def real_thermal(status):
 
 class FakeSubMaster(dict):
   def __init__(self, left=False, right=False, thermal=None, alert_size=None, car_frame=10,
-               has_fix=True, accuracy=3.0, enabled=False, engageable=False):
+               has_fix=True, accuracy=0.0, gps_alive=True, enabled=False, engageable=False):
     super().__init__(
       carState=SimpleNamespace(leftBlinker=left, rightBlinker=right),
       deviceState=SimpleNamespace(thermalStatus=real_thermal(thermal or 'ok')),
@@ -45,6 +45,7 @@ class FakeSubMaster(dict):
                                      enabled=enabled, engageable=engageable),
     )
     self.recv_frame = {'carState': car_frame}
+    self.alive = {'gpsLocation': gps_alive}
 
 
 class FakeUIState:
@@ -184,15 +185,36 @@ class TestGpsLegend(StatusLegendsTestCase):
     _, color = self._drawn()
     self.assertEqual((color.r, color.g, color.b), (sl.AMBER.r, sl.AMBER.g, sl.AMBER.b))
 
-  def test_unreported_accuracy_is_amber_not_green(self):
-    """0.0 means the module said nothing, which is not the same as perfect."""
+  def test_unreported_accuracy_is_green_on_a_live_fix(self):
+    """The regression that made this legend useless: amber every drive.
+
+    `horizontalAccuracy` is written by ubloxd only. The 3X's position comes from
+    qcomgpsd, which never sets it, so it reads 0.0 forever — and the legend
+    treated that as a degraded fix. It could not go green on the only hardware
+    the fork runs on. An unreported field is no evidence, not bad news.
+    """
     GpsLegend().render(SCREEN, FakeSubMaster(has_fix=True, accuracy=0.0))
+
+    _, color = self._drawn()
+    self.assertEqual((color.r, color.g, color.b), (sl.GREEN.r, sl.GREEN.g, sl.GREEN.b))
+
+  def test_stale_fix_is_amber(self):
+    """A held position that is no longer being refreshed — tunnel, dead antenna.
+    This is the amber that actually fires on a 3X."""
+    GpsLegend().render(SCREEN, FakeSubMaster(has_fix=True, gps_alive=False))
 
     _, color = self._drawn()
     self.assertEqual((color.r, color.g, color.b), (sl.AMBER.r, sl.AMBER.g, sl.AMBER.b))
 
   def test_no_fix_is_dim(self):
     GpsLegend().render(SCREEN, FakeSubMaster(has_fix=False))
+
+    _, color = self._drawn()
+    self.assertEqual(color.a, sl.DIM.a)
+
+  def test_no_fix_wins_over_staleness(self):
+    """Before the first fix nothing is alive either; dim is the honest answer."""
+    GpsLegend().render(SCREEN, FakeSubMaster(has_fix=False, gps_alive=False))
 
     _, color = self._drawn()
     self.assertEqual(color.a, sl.DIM.a)

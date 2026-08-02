@@ -15,10 +15,12 @@ from unittest import mock
 import pyray as rl
 
 import openpilot.selfdrive.ui.layouts.settings.settings as st
+from openpilot.selfdrive.ui.chameleon import brightness
 from openpilot.selfdrive.ui.chameleon import toggles as toggle_defs_mod
 from openpilot.selfdrive.ui.chameleon.layouts import nav
 from openpilot.selfdrive.ui.chameleon.layouts import settings as cs
 from openpilot.selfdrive.ui.chameleon.toggles import TOGGLE_DEFS
+from openpilot.system.ui.widgets import DialogResult
 from openpilot.system.ui.widgets.scroller_tici import LineSeparator
 
 
@@ -60,6 +62,10 @@ class FakeCP:
 class FakeUIState:
   def __init__(self, CP=None):
     self.CP = CP
+    self.param_refreshes = 0
+
+  def update_params(self):
+    self.param_refreshes += 1
 
 
 # panel class -> the param tuple it is supposed to render
@@ -122,7 +128,7 @@ class TestPanelSplit(PanelTestCase):
     panel = cs.ChameleonThemesLayout()
     items = panel._scroller._items
 
-    self.assertEqual(items[:2], [panel._theme_btn, panel._night_btn])
+    self.assertEqual(items[:3], [panel._theme_btn, panel._night_btn, panel._brightness_btn])
 
   def test_upstream_toggles_panel_is_stock(self):
     """The whole point of the fork panels: upstream's TogglesLayout owes the fork nothing."""
@@ -217,6 +223,60 @@ class TestParamsRoundTrip(PanelTestCase):
 
     self.assertTrue(themes_panel._toggles["RainbowMode"].action_item.get_state())
     self.assertEqual(driving._alc_timer.action_item.get_selected_button(), 3)
+
+
+class TestBrightnessRow(PanelTestCase):
+  """The manual brightness picker. Auto is the default and must stay a real
+  option, because it is the only value that leaves upstream's backlight alone."""
+
+  def _open_dialog(self, panel):
+    dialog_cls = self._patch(mock.patch.object(cs, 'MultiOptionDialog'))
+    self._patch(mock.patch.object(cs.gui_app, 'push_widget'))
+    panel._show_brightness_dialog()
+    _, options, _ = dialog_cls.call_args.args
+    return options, dialog_cls.call_args.kwargs['callback'], panel._brightness_dialog
+
+  def test_label_reads_auto_by_default(self):
+    self.assertEqual(cs.ChameleonThemesLayout()._current_brightness_label(), "Auto")
+
+  def test_label_reads_the_chosen_level(self):
+    self.params.values["ChameleonBrightness"] = 40
+
+    self.assertEqual(cs.ChameleonThemesLayout()._current_brightness_label(), "40%")
+
+  def test_dialog_offers_auto_then_every_level(self):
+    options, _, _ = self._open_dialog(cs.ChameleonThemesLayout())
+
+    self.assertEqual(list(options.values()), [brightness.AUTO, *brightness.LEVELS])
+
+  def test_confirming_writes_an_int(self):
+    """Params.put is type-checked on an INT key — a string raises on the car."""
+    panel = cs.ChameleonThemesLayout()
+    options, callback, dialog = self._open_dialog(panel)
+    dialog.selection = "40%"
+
+    callback(DialogResult.CONFIRM)
+
+    self.assertEqual(self.params.values["ChameleonBrightness"], 40)
+    self.assertIsInstance(self.params.values["ChameleonBrightness"], int)
+
+  def test_confirming_refreshes_params_so_the_screen_moves_now(self):
+    panel = cs.ChameleonThemesLayout()
+    _, callback, dialog = self._open_dialog(panel)
+    dialog.selection = "Auto"
+
+    callback(DialogResult.CONFIRM)
+
+    self.assertEqual(self.ui_state.param_refreshes, 1)
+
+  def test_cancelling_writes_nothing(self):
+    panel = cs.ChameleonThemesLayout()
+    _, callback, dialog = self._open_dialog(panel)
+    dialog.selection = "40%"
+
+    callback(DialogResult.CANCEL)
+
+    self.assertEqual(self.params.puts, [])
 
 
 class TestBsmGating(PanelTestCase):
@@ -338,6 +398,89 @@ class TestSidebar(NavTestCase):
     stacked = len(host._panels) * nav.NAV_BTN_HEIGHT + nav.GROUP_DIVIDER_HEIGHT
 
     self.assertGreater(stacked + 300, 1080)
+
+
+class TestNavLabelFit(NavTestCase):
+  """Two sidebar rows drew their label on top of their own icon.
+
+  Panel names are right-aligned, so a label wider than its row grows leftward
+  across the icon at the row's left edge — which is what "Aircraft HUD" and
+  "Stock HUD", the two longest names in the list, did. Real font metrics only
+  exist on the device, so the widths here are faked *proportionally* (length x
+  size): what is pinned is that the layout responds to the measurement, not a
+  hand-tuned number that was wrong once already.
+  """
+  ROW = rl.Rectangle(0, 0, nav.SIDEBAR_WIDTH - nav.NAV_RIGHT_PAD, nav.NAV_BTN_HEIGHT)
+
+  def _fake_measure(self, per_char=0.6):
+    def measure(_font, text, size, *_args):
+      return rl.Vector2(len(text) * size * per_char, float(size))
+    return self._patch(mock.patch.object(nav, 'measure_text_cached', side_effect=measure))
+
+  def test_every_label_fits_beside_its_icon_at_the_fitted_size(self):
+    self._fake_measure()
+    host = self._host()
+
+    size = host._fit_nav_label_size()
+
+    for button in host._nav_buttons:
+      width = len(button.label_text) * size * 0.6
+      self.assertLessEqual(width, button.label_width_available,
+                           f"{button.label_text!r} still crosses its icon at size {size}")
+
+  def test_the_fitted_size_is_the_largest_that_fits(self):
+    """Shrink only as far as needed: this is a type size the user reads."""
+    self._fake_measure()
+    host = self._host()
+
+    size = host._fit_nav_label_size()
+    if size > nav.NAV_MIN_LABEL_SIZE:
+      too_big = size + 1
+      self.assertTrue(any(len(b.label_text) * too_big * 0.6 > b.label_width_available for b in host._nav_buttons))
+
+  def test_one_size_for_the_whole_list(self):
+    """Mixed type sizes on evenly spaced rows read as a mistake."""
+    self._fake_measure()
+    host = self._host()
+    host._nav_label_size = host._fit_nav_label_size()
+    sizes = set()
+    self._patch(mock.patch.object(nav.rl, 'draw_texture_v'))
+    text = self._patch(mock.patch.object(nav.rl, 'draw_text_ex'))
+
+    for button in host._nav_buttons:
+      button._render(self.ROW)
+    for call in text.call_args_list:
+      sizes.add(call.args[3])
+
+    self.assertEqual(len(sizes), 1, sizes)
+
+  def test_a_label_can_never_be_drawn_over_its_icon(self):
+    """The clamp, tested where the fit cannot help: absurdly wide text."""
+    self._fake_measure(per_char=4.0)  # no size in range makes these fit
+    host = self._host()
+    host._nav_label_size = host._fit_nav_label_size()
+    self._patch(mock.patch.object(nav.rl, 'draw_texture_v'))
+    text = self._patch(mock.patch.object(nav.rl, 'draw_text_ex'))
+
+    for button in host._nav_buttons:
+      if button._icon:
+        text.reset_mock()
+        button._render(self.ROW)
+        self.assertGreaterEqual(text.call_args.args[2].x, self.ROW.x + nav.NAV_ICON_SIZE + nav.NAV_ICON_GAP,
+                                f"{button.label_text!r} drawn over its icon")
+
+  def test_the_fit_never_goes_below_the_floor(self):
+    self._fake_measure(per_char=4.0)
+    host = self._host()
+
+    self.assertEqual(host._fit_nav_label_size(), nav.NAV_MIN_LABEL_SIZE)
+
+  def test_the_aircraft_panel_name_is_the_short_one(self):
+    """It was "Aircraft HUD": the widest name in the sidebar by a clear margin,
+    and the "HUD" said nothing the panel's own contents do not."""
+    host = self._host()
+
+    self.assertEqual(host._panels[nav.ChameleonPanel.AIRCRAFT].name, "Aircraft")
 
 
 class TestSidebarTaps(NavTestCase):

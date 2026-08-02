@@ -21,6 +21,7 @@ import requests
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui import themes
+from openpilot.selfdrive.ui.chameleon import brightness
 from openpilot.selfdrive.ui.chameleon.toggles import DESCRIPTIONS, TOGGLE_DEFS
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
@@ -33,7 +34,15 @@ from openpilot.system.ui.widgets.scroller_tici import Scroller
 THEME_DESCRIPTIONS = {
   'hud_theme': tr_noop("Color scheme for the onroad display. Stock matches upstream openpilot exactly."),
   'night_mode': tr_noop("Switch to the theme's night palette in the dark. Auto follows ambient light."),
+  'brightness': tr_noop(
+    "Screen brightness. Auto is openpilot's own behaviour: the road camera's exposure drives the backlight, " +
+    "between 30 and 100 percent while driving. A fixed level overrides that everywhere, which is how to get a " +
+    "dimmer screen at night than Auto will give you. Changes ease in over about ten seconds, and the screen " +
+    "still goes dark on the usual timeout."
+  ),
 }
+
+BRIGHTNESS_AUTO_LABEL = tr_noop("Auto")
 
 NIGHT_MODE_LABELS = {
   "auto": tr_noop("Auto"),
@@ -108,19 +117,22 @@ class ChameleonPanelBase(Widget):
 
 
 class ChameleonThemesLayout(ChameleonPanelBase):
-  """The palette itself, and the two toggles that change how it is drawn."""
+  """How the screen looks: the palette, when it goes dark, how bright it is."""
 
   def __init__(self):
     super().__init__()
     self._theme_dialog: MultiOptionDialog | None = None
     self._night_dialog: MultiOptionDialog | None = None
+    self._brightness_dialog: MultiOptionDialog | None = None
 
     self._theme_btn = button_item(lambda: tr("HUD Theme"), self._current_theme_label,
                                   lambda: tr(THEME_DESCRIPTIONS['hud_theme']), callback=self._show_theme_dialog)
     self._night_btn = button_item(lambda: tr("Night Mode"), self._current_night_label,
                                   lambda: tr(THEME_DESCRIPTIONS['night_mode']), callback=self._show_night_dialog)
+    self._brightness_btn = button_item(lambda: tr("Screen Brightness"), self._current_brightness_label,
+                                       lambda: tr(THEME_DESCRIPTIONS['brightness']), callback=self._show_brightness_dialog)
 
-    self._build([self._theme_btn, self._night_btn, *self._rows(THEMES_PARAMS)])
+    self._build([self._theme_btn, self._night_btn, self._brightness_btn, *self._rows(THEMES_PARAMS)])
 
   def _current_theme_label(self) -> str:
     return tr(themes.active().label)
@@ -152,6 +164,31 @@ class ChameleonThemesLayout(ChameleonPanelBase):
 
     self._night_dialog = MultiOptionDialog(tr("Night Mode"), options, self._current_night_label(), callback=handle_night_selection)
     gui_app.push_widget(self._night_dialog)
+
+  def _brightness_percent(self) -> int:
+    # INT-typed param: get returns an int already, never a string to parse
+    return self._params.get("ChameleonBrightness", return_default=True) or brightness.AUTO
+
+  def _current_brightness_label(self) -> str:
+    percent = self._brightness_percent()
+    return tr(BRIGHTNESS_AUTO_LABEL) if percent == brightness.AUTO else f"{percent}%"
+
+  def _show_brightness_dialog(self) -> None:
+    options: dict[str, int] = {tr(BRIGHTNESS_AUTO_LABEL): brightness.AUTO}
+    options.update({f"{percent}%": percent for percent in brightness.LEVELS})
+
+    def handle_brightness_selection(result: DialogResult):
+      if result == DialogResult.CONFIRM and self._brightness_dialog:
+        # an int, not a string: Params.put is type-checked on this INT key
+        self._params.put("ChameleonBrightness", options[self._brightness_dialog.selection], block=True)
+        # same as upstream's toggle rows: refresh now so the backlight starts
+        # moving with the dialog, rather than at the next background param tick
+        ui_state.update_params()
+      self._brightness_dialog = None
+
+    self._brightness_dialog = MultiOptionDialog(tr("Screen Brightness"), options, self._current_brightness_label(),
+                                                callback=handle_brightness_selection)
+    gui_app.push_widget(self._brightness_dialog)
 
 
 class ChameleonAircraftLayout(ChameleonPanelBase):

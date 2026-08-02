@@ -13,7 +13,7 @@ from openpilot.selfdrive.ui.lib.prime_state import PrimeState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.common.hardware import HARDWARE, PC
 from openpilot.selfdrive.modeld.helpers import usbgpu_compiled
-from openpilot.selfdrive.ui.chameleon import ui_params as chameleon_params
+from openpilot.selfdrive.ui.chameleon import brightness as chameleon_brightness, ui_params as chameleon_params
 
 BACKLIGHT_OFFROAD = 65 if HARDWARE.get_device_type() == "mici" else 50
 PARAM_UPDATE_TIME = 1 / 5.0
@@ -300,6 +300,7 @@ class Device:
 
       clipped_brightness = float(np.interp(clipped_brightness, [0, 1], [30, 100]))
 
+    clipped_brightness = chameleon_brightness.resolve(ui_state.brightness_percent, clipped_brightness)
     brightness = round(self._brightness_filter.update(clipped_brightness))
     if not self._awake:
       brightness = 0
