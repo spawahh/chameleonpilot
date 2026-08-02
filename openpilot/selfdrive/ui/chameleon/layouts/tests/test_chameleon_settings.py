@@ -201,6 +201,16 @@ class TestParamsRoundTrip(PanelTestCase):
 
     self.assertIn(("PitchLadder", True), self.params.puts)
 
+  def test_alc_title_is_two_lines(self):
+    """Six buttons plus a long one-line title left the buttons squeezed: upstream
+    sizes the button block from content_width - title_width, so breaking the
+    title is what gives them their width back."""
+    title = cs.ChameleonDrivingLayout()._alc_timer.title
+    lines = title.split("\n")
+
+    self.assertEqual(len(lines), 2, title)
+    self.assertTrue(all(line.strip() for line in lines), title)
+
   def test_alc_timer_writes_int_index(self):
     panel = cs.ChameleonDrivingLayout()
 

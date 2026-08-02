@@ -269,7 +269,14 @@ class ChameleonDrivingLayout(ChameleonPanelBase):
     # a live callable greys the rows the moment CarParams arrives
     has_bsm = self._has_bsm
     self._alc_timer = multiple_button_item(
-      lambda: tr("Auto Lane Change by Blinker"),
+      # Two lines on purpose. This row carries six buttons (960 px of them), and
+      # upstream sizes the button block with `content_width - title_width`, so a
+      # long single-line title squeezes the buttons rather than wrapping itself.
+      # Breaking the title drops the measured width to its longest line, which
+      # hands the buttons their full width back. raylib's draw_text_ex and
+      # measure_text_ex both understand "\n", and two 50 px lines (~135 px drawn)
+      # fit inside the 170 px row.
+      lambda: tr("Auto Lane Change\nby Blinker"),
       lambda: tr(DESCRIPTIONS["AutoLaneChangeTimer"]),
       buttons=[lambda: tr("Nudge"), lambda: tr("Nudgeless"), "0.5s", "1s", "2s", "3s"],
       button_width=160,

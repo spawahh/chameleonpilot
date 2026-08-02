@@ -229,6 +229,59 @@ class TestSpeedBugs(TapesTestCase):
     self.assertAlmostEqual(apex.y, SCREEN.height / 2 - tp.TAPE_HEIGHT / 2, delta=0.1)
 
 
+class TestCaretWinding(TapesTestCase):
+  """Both speed bugs were invisible on the car, and this is why.
+
+  raylib enables backface culling, so `draw_triangle` silently drops a triangle
+  whose vertices are wound the wrong way. The old code chose the winding from a
+  branch on which side of the tape the caret sat, and that branch had the sign
+  backwards — so every *filled* caret was back-facing. It hid for two rounds
+  because the posted-limit caret used to be drawn with `draw_triangle_lines`
+  (line geometry, never culled): the limit was visible but faint, exactly as
+  Marcus described it, while the filled setpoint caret had never rendered at all.
+
+  The reference for "correct" is upstream's lead chevron — a shipped filled
+  polygon that visibly renders — and these carets are the only filled
+  `draw_triangle` calls in the tree, which is why nothing caught it earlier.
+  """
+  # model_renderer.py's chevron with x=0, y=0, sz=1: bottom-right, top, bottom-left
+  UPSTREAM_CHEVRON = ((1.25, 1.0), (0.0, 0.0), (-1.25, 1.0))
+
+  def test_upstream_chevron_sets_the_reference_orientation(self):
+    """If this ever fails, upstream changed its winding and ours must follow."""
+    a, b, c = (rl.Vector2(*p) for p in self.UPSTREAM_CHEVRON)
+
+    self.assertLess(tp.signed_area(a, b, c), 0)
+
+  def test_every_caret_drawn_is_front_facing(self):
+    sm = FakeSubMaster(car=fake_car_state(v_ego=13.4, v_cruise=56.0),
+                       live=fake_live_map(limit=8.94, valid=True))
+    self.tapes.render(SCREEN, sm)
+
+    self.assertTrue(self.triangle.called, "no caret drawn at all")
+    for call in self.triangle.call_args_list:
+      area = tp.signed_area(call.args[0], call.args[1], call.args[2])
+      self.assertLess(area, 0, "caret wound back-facing: raylib will draw nothing")
+
+  def test_the_old_winding_was_back_facing(self):
+    """Pins the actual defect, so the fix cannot be reverted quietly."""
+    apex, v_up, v_dn = rl.Vector2(0, 0), rl.Vector2(10, -5), rl.Vector2(10, 5)
+
+    self.assertGreater(tp.signed_area(apex, v_up, v_dn), 0)  # what the old branch picked
+    self.assertLess(tp.signed_area(*tp.front_facing(apex, v_up, v_dn)), 0)
+
+  def test_front_facing_leaves_a_good_triangle_untouched(self):
+    apex, v_up, v_dn = rl.Vector2(0, 0), rl.Vector2(10, -5), rl.Vector2(10, 5)
+
+    self.assertEqual(tp.front_facing(apex, v_dn, v_up), (apex, v_dn, v_up))
+
+  def test_normalising_keeps_the_apex_first(self):
+    """The apex is what marks the value; geometry tests read args[0]."""
+    apex, v_up, v_dn = rl.Vector2(3, 7), rl.Vector2(10, -5), rl.Vector2(10, 5)
+
+    self.assertIs(tp.front_facing(apex, v_up, v_dn)[0], apex)
+
+
 class TestSetSpeedTag(TapesTestCase):
   """The fixed "SET nn" readout above the speed tape.
 

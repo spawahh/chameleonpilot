@@ -149,9 +149,35 @@ class VerticalTape:
     v_up = rl.Vector2(base_x, y - size / 2)
     v_dn = rl.Vector2(base_x, y + size / 2)
 
-    # raylib culls clockwise triangles; the winding flips with the tape side
-    verts = (apex, v_up, v_dn) if base_x > edge else (apex, v_dn, v_up)
-    rl.draw_triangle(*verts, color)
+    rl.draw_triangle(*front_facing(apex, v_up, v_dn), color)
+
+
+def signed_area(a: rl.Vector2, b: rl.Vector2, c: rl.Vector2) -> float:
+  """Twice the signed area of the triangle, in screen coordinates (y down)."""
+  return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)
+
+
+def front_facing(a: rl.Vector2, b: rl.Vector2, c: rl.Vector2) -> tuple[rl.Vector2, rl.Vector2, rl.Vector2]:
+  """The same triangle, wound so raylib will actually draw it.
+
+  ⚠️ raylib enables backface culling in `rlglInit`, so a triangle handed to
+  `draw_triangle` in the wrong order is silently dropped — no error, no pixels.
+  That is what hid both speed bugs: the winding here was chosen by a branch on
+  which side of the tape the caret pointed, and that branch had the sign
+  backwards, so every *filled* caret was back-facing. It went unnoticed because
+  the posted-limit caret used to be drawn with `draw_triangle_lines`, which is
+  line geometry and not culled — so the limit was visible but faint (Marcus:
+  "the speedlimit was working in the past, it was just hard to see") while the
+  filled setpoint caret had never rendered at all.
+
+  Rather than get the order right per case, normalise it. The reference for
+  "right" is upstream's lead chevron (`model_renderer.py`, a shipped and
+  visibly-rendering filled polygon): its vertices have a **negative** signed
+  area in screen coordinates. Note these are the only filled `draw_triangle`
+  calls in the tree, which is why there was no working example to compare
+  against in the first place.
+  """
+  return (a, b, c) if signed_area(a, b, c) < 0 else (a, c, b)
 
 
 def math_floor_to(value: float, step: float) -> float:
