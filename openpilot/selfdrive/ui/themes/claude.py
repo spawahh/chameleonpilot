@@ -76,7 +76,7 @@ CLAUDE = Theme(
     TEXT_DIM=rl.Color(140, 133, 122, 255),
   ),
   # Night: same hues, lower luminance and saturation, so nothing glares in a dark
-  # cabin but every state stays recognisable. Safety cues remain stock (tested).
+  # cabin but every state stays recognizable. Safety cues remain stock (tested).
   night_hud=HudColors(
     WHITE=rl.Color(198, 193, 182, 255),
     DISENGAGED=rl.Color(112, 107, 98, 255),
