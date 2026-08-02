@@ -13,6 +13,7 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.themes.base import Theme
 from openpilot.selfdrive.ui.themes.baker import BAKER
 from openpilot.selfdrive.ui.themes.cascade import CASCADE
+from openpilot.selfdrive.ui.themes.claude import CLAUDE
 from openpilot.selfdrive.ui.themes.hood import HOOD
 from openpilot.selfdrive.ui.themes.rainier import RAINIER
 from openpilot.selfdrive.ui.themes.solar import SolarSchedule
@@ -29,7 +30,7 @@ NIGHT_ENTER_BELOW = 30.0
 NIGHT_EXIT_ABOVE = 45.0
 NIGHT_DWELL_S = 15.0
 
-THEMES: dict[str, Theme] = {t.name: t for t in (STOCK, CASCADE, RAINIER, BAKER, HOOD)}
+THEMES: dict[str, Theme] = {t.name: t for t in (STOCK, CASCADE, RAINIER, BAKER, HOOD, CLAUDE)}
 
 _active: Theme = DEFAULT_THEME
 

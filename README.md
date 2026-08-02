@@ -40,7 +40,8 @@ car. Treat it accordingly.
 ### In this branch
 
 - **HUD theme packs** — `Stock` (bit-for-bit upstream colours, the regression baseline), `Cascade`
-  (glacier teal), `Rainier` (alpine dawn), `Baker` (evergreen), and `Hood` (high-desert dusk).
+  (glacier teal), `Rainier` (alpine dawn), `Baker` (evergreen), `Hood` (high-desert dusk), and
+  `claudePilot` (warm paper and clay — the only warm-neutral palette of the set).
   Every coloured element onroad is themed: engaged border, path gradient, lane lines, lead markers,
   driver-monitoring arc, alert backgrounds. Offroad chrome (sidebar, settings) too. Safety cues are
   identical in every theme, by test.
