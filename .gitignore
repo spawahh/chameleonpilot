@@ -91,7 +91,10 @@ build/
 !.vscode/*.code-snippets
 
 # agents
-.claude/
+.claude/*
+# keep the shared plugin declaration tracked; cloud sessions only load plugins
+# declared in the repo, never ones installed in a developer's user settings
+!.claude/settings.json
 .context/
 PLAN.md
 TASK.md
