@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "openpilot-claude-kit": {
+      "source": {
+        "source": "github",
+        "repo": "spawahh/openpilot-claude-kit"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "openpilot-cloud-dev@openpilot-claude-kit": true
+  }
+}
