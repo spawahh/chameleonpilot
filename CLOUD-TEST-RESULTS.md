@@ -218,7 +218,7 @@ $ which python3 scons cc g++
 `scons` is **not** on `PATH` (`which scons` → exit 1; `command -v scons` → exit 1). The C/C++
 toolchain (`cc`, `g++`) is present. `HOME=/root`, running as uid 0.
 
-### ⚠️ Latent trap — `.python-version` pins a Python `uv` cannot supply
+### ⚠️ Latent trap — this container's `uv` is too old to supply the pinned Python
 
 This one would bite even if the plugin loaded correctly:
 
@@ -240,6 +240,19 @@ cached to fall back on. Unless the hook pins or upgrades `uv` first, `uv sync` i
 fail on interpreter resolution. **I did not run `uv sync` to confirm this** — it is a
 prediction from the version data above, not an observed failure. It is the first thing to
 check once the plugin actually loads.
+
+**This repo's own GitHub Actions CI confirms the pin itself is fine and the container's `uv`
+is the problem.** The `unit tests` job resolves the pinned interpreter without complaint:
+
+```
+uv 0.12.1
+.../.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/...
+```
+
+So 3.12.13 exists and is fetchable — `uv 0.8.17` in this cloud image is simply too old to
+know about it. **Fix `uv`, not `.python-version`:** have the hook run `uv self update` (or
+install a pinned modern `uv`) before `uv sync`. Do not relax the pin — CI would then be
+building against a different interpreter than the cloud session.
 
 ---
 
@@ -305,6 +318,26 @@ $ ldconfig -p | grep -iE 'GLESv|EGL|libgbm|libdrm' | head
 `libwayland-egl.so.1` is present but that is the Wayland EGL platform shim, **not** `libEGL.so`
 or `libGLESv2.so`. So the apt step the hook owns is genuinely load-bearing for `pyray` on this
 image — it is not something the base image happens to provide for free.
+
+**Independent corroboration from this repo's CI.** The PR carrying this report triggered the
+repo's GitHub Actions run, and the `unit tests` and `Create UI Report` jobs both failed on the
+exact same missing library — verbatim:
+
+```
+E   ImportError: libGLESv2.so.2: cannot open shared object file: No such file or directory
+```
+
+...surfacing through `pyray` as:
+
+```
+ImportError: failed to load raylib headless backend extension _raylib_cffi_headless
+```
+
+That produced `4 failed, 947 passed, 90 skipped, 1 xfailed, 18 errors` — every one of the 4
+failures and 18 errors traced to that single missing `.so`. Two independent environments (this
+cloud container and a GitHub Actions runner) are missing `libGLESv2.so.2`, which makes the
+hook's GLES install step the single highest-value thing it does. It is worth verifying first
+once the plugin loads.
 
 ---
 
@@ -385,6 +418,22 @@ into it. **The env-file mechanism itself is untested by this run**; we only know
 
 7. **Nothing needed cleanup afterward** — because nothing happened. The working tree was clean
    apart from this file.
+
+8. **CI on this branch is red for reasons that predate it.** The PR carrying this report
+   changes three files and no code, yet four checks failed. All four are pre-existing on
+   `main`:
+
+   | Check | Cause | Related to this diff? |
+   |---|---|---|
+   | `static analysis` | `codespell` — 139 en-GB spelling hits in `openpilot/selfdrive/ui/**`; `ruff` passed | No — zero hits in the three changed files |
+   | `unit tests` | `ImportError: libGLESv2.so.2` — 4 failed, 18 errors | No |
+   | `Create UI Report` | same `libGLESv2.so.2` ImportError | No |
+   | `process replay` | 9 segments differ in `carControl.actuators.torque` and `torqueState.*` vs reference logs | No — the diff contains no Python or C++ |
+
+   Worth knowing before the next cloud test: **a green CI is not the bar on this fork right
+   now.** Also note `[tool.codespell]` in `pyproject.toml` sets `builtin = "...,en-GB_to_en-US"`
+   and its `skip` list does not exclude `*.md`, so en-GB spellings are rejected in new
+   documentation too — easy to trip when writing prose about en-GB spellings.
 
 ---
 
