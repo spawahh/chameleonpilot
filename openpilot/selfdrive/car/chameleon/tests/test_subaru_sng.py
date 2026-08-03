@@ -101,8 +101,9 @@ class TestSetupSubaruStopAndGo(unittest.TestCase):
 
     CP = car_params()
     setup_subaru_stop_and_go(CP, params(True))
-    # survives the round-trip card does before panda ever sees it
-    self.assertTrue(structs.CarParams.from_bytes(CP.to_bytes()).flags & SNG_FLAG)
+    # survives the serialization card does before panda ever sees it
+    with structs.CarParams.from_bytes(CP.to_bytes()) as CP_read:
+      self.assertTrue(CP_read.flags & SNG_FLAG)
 
 
 if __name__ == '__main__':
