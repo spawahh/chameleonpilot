@@ -103,6 +103,14 @@ DESCRIPTIONS = {
     "Green is speeding up, red is slowing down. This is what the car is doing, not what openpilot asked for."
   ),
   "ShowTurnSignals": tr_noop("Show a blinking arrow on the onroad screen while a turn signal is on."),
+  "SubaruStopAndGo": tr_noop(
+    "Let your car's own adaptive cruise control (ACC) pull away by itself after a full stop, instead of waiting for you to press resume. " +
+    "Subaru only, and only on cars where the EyeSight camera does the speed keeping. " +
+    "It works by sending the camera a small false speed while you are stopped, so the camera never decides the car has parked. " +
+    "Experimental. It changes how the car behaves in traffic, so watch the first few stops closely and keep your foot ready. " +
+    "Not available on Gen 2 or hybrid Subarus, or when openpilot is doing the accelerating and braking. " +
+    "Changing this restarts openpilot if the car is powered on."
+  ),
 }
 
 # param -> (title, description, icon, needs_restart), upstream's row shape
@@ -226,5 +234,11 @@ TOGGLE_DEFS = {
     DESCRIPTIONS["ShowTurnSignals"],
     "arrow-right.png",
     False,
+  ),
+  "SubaruStopAndGo": (
+    lambda: tr("Subaru Stop and Go"),
+    DESCRIPTIONS["SubaruStopAndGo"],
+    "chffr_wheel.png",
+    True,
   ),
 }

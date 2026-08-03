@@ -3,7 +3,15 @@
   url = ../../commaai/panda.git
 [submodule "opendbc"]
   path = opendbc_repo
-  url = ../../commaai/opendbc.git
+  # spawahh/opendbc, not commaai/opendbc: the Subaru stop-and-go feature needs forked
+  # panda safety and car code.
+  #
+  # Absolute, unlike every other submodule here. The relative form resolves against
+  # whatever `origin` happens to be, and this fork gets cloned from more than one
+  # place -- the WSL test clone's origin is commaai/openpilot, where `../opendbc.git`
+  # would silently fetch commaai's opendbc and the feature would vanish with no error.
+  # We want one specific opendbc regardless of where the superproject came from.
+  url = https://github.com/spawahh/opendbc.git
 [submodule "msgq"]
   path = msgq_repo
   url = ../../commaai/msgq.git

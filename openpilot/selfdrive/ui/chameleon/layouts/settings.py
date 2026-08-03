@@ -18,6 +18,7 @@ from collections.abc import Sequence
 
 import requests
 
+from opendbc.car.subaru.values import SubaruFlags
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui import themes
@@ -71,7 +72,7 @@ AIRCRAFT_PARAMS = ("AircraftTapes", "PitchLadder", "FlightPathVector", "TargetDe
                    "DmAnnunciator", "DriverAlerts", "RocketFuel")
 STOCK_HUD_PARAMS = ("ShowTurnSignals", "BlindSpot", "RoadNameDisplay", "SpeedLimitDisplay")
 HIDE_PARAMS = ("HideDriverFace", "HideDrivingPath", "HideLaneLines", "HideSpeedCluster", "HideWheelButton")
-DRIVING_PARAMS = ("AutoLaneChangeBsmDelay", "NeuralNetworkLateralControl")
+DRIVING_PARAMS = ("AutoLaneChangeBsmDelay", "NeuralNetworkLateralControl", "SubaruStopAndGo")
 
 PANEL_PARAMS = THEMES_PARAMS + AIRCRAFT_PARAMS + STOCK_HUD_PARAMS + HIDE_PARAMS + DRIVING_PARAMS
 
@@ -289,12 +290,28 @@ class ChameleonDrivingLayout(ChameleonPanelBase):
     rows = self._rows(DRIVING_PARAMS)
     # the BSM gate applies to the auto-lane-change rows only, not everything here
     self._toggles["AutoLaneChangeBsmDelay"].action_item.set_enabled(has_bsm)
+    self._toggles["SubaruStopAndGo"].action_item.set_enabled(self._subaru_sng_available)
 
     self._build([self._alc_timer, *rows])
 
   @staticmethod
   def _has_bsm() -> bool:
     return ui_state.CP is not None and bool(ui_state.CP.enableBsm)
+
+  @staticmethod
+  def _subaru_sng_available() -> bool:
+    """The same three refusals setup_subaru_stop_and_go applies, shown before the drive.
+
+    Deliberately duplicated rather than shared: card owns the decision that actually
+    arms the feature, and the UI must not be able to weaken it. This only decides
+    whether the row is tappable, so the failure mode of the two drifting is a row
+    that greys out when it did not need to -- never a row that arms a car card
+    would have refused.
+    """
+    CP = ui_state.CP
+    if CP is None or CP.brand != "subaru":
+      return False
+    return not (CP.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.HYBRID)) and not CP.openpilotLongitudinalControl
 
   def show_event(self):
     super().show_event()
