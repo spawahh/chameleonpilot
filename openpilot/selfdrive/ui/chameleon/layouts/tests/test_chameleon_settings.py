@@ -14,6 +14,8 @@ from unittest import mock
 
 import pyray as rl
 
+from opendbc.car.subaru.values import SubaruFlags
+
 import openpilot.selfdrive.ui.layouts.settings.settings as st
 from openpilot.selfdrive.ui.chameleon import brightness
 from openpilot.selfdrive.ui.chameleon import toggles as toggle_defs_mod
@@ -55,8 +57,13 @@ class FakeParams:
 
 
 class FakeCP:
-  def __init__(self, enable_bsm):
+  def __init__(self, enable_bsm=False, brand="subaru", flags=0, op_long=False):
     self.enableBsm = enable_bsm
+    # the Subaru stop-and-go row reads these three; default to an eligible car so
+    # the BSM tests below stay about BSM
+    self.brand = brand
+    self.flags = flags
+    self.openpilotLongitudinalControl = op_long
 
 
 class FakeUIState:
@@ -358,6 +365,46 @@ class TestBsmGating(PanelTestCase):
     panel = cs.ChameleonDrivingLayout()
 
     self.assertTrue(panel._toggles["NeuralNetworkLateralControl"].action_item.enabled)
+
+  def test_subaru_sng_is_never_gated_on_bsm(self):
+    self.ui_state.CP = FakeCP(enable_bsm=False)
+    panel = cs.ChameleonDrivingLayout()
+
+    self.assertTrue(panel._toggles["SubaruStopAndGo"].action_item.enabled)
+
+
+class TestSubaruSngGating(PanelTestCase):
+  """The row greys out on cars card would refuse to arm.
+
+  This mirrors setup_subaru_stop_and_go rather than sharing with it: card owns the
+  decision that actually arms the feature, and a greyed row that could have armed is
+  a far better failure than a tappable row on a car that cannot run it.
+  """
+
+  def _row(self, **cp):
+    self.ui_state.CP = FakeCP(**cp)
+    return cs.ChameleonDrivingLayout()._toggles["SubaruStopAndGo"].action_item
+
+  def test_enabled_on_an_eligible_subaru(self):
+    self.assertTrue(self._row().enabled)
+
+  def test_disabled_on_other_brands(self):
+    self.assertFalse(self._row(brand="toyota").enabled)
+
+  def test_disabled_on_gen2_and_hybrid(self):
+    self.assertFalse(self._row(flags=SubaruFlags.GLOBAL_GEN2.value).enabled)
+    self.assertFalse(self._row(flags=SubaruFlags.HYBRID.value).enabled)
+
+  def test_disabled_with_openpilot_longitudinal(self):
+    self.assertFalse(self._row(op_long=True).enabled)
+
+  def test_gate_is_live_not_snapshotted(self):
+    self.ui_state.CP = None
+    row = cs.ChameleonDrivingLayout()._toggles["SubaruStopAndGo"].action_item
+    self.assertFalse(row.enabled)
+
+    self.ui_state.CP = FakeCP()
+    self.assertTrue(row.enabled)
 
 
 class NavTestCase(PanelTestCase):
